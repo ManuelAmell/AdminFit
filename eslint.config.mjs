@@ -18,6 +18,9 @@ const eslintConfig = defineConfig([
     "test-results/**",
     "coverage/**",
     "drizzle/**",
+    ".claude/**",
+    ".pgdata/**",
+    "uploads/**",
   ]),
 ]);
 
