@@ -51,3 +51,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Postgres local (initdb, puerto 5433)
+/.pgdata/

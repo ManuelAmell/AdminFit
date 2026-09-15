@@ -32,8 +32,32 @@ tabla de negocio + Row Level Security de Postgres como segunda barrera.**
   `current_setting('app.org_id')`.
 - Todas las queries de negocio pasan por ese helper → imposible olvidar
   el `where org_id`.
-- Roles por org: `owner`, `admin`, `staff`. Rol de plataforma
-  `superadmin` para gestionar tenants.
+- Roles por org (`member.role`): `owner`, `admin`, `staff`; permisos
+  declarados en `src/lib/auth/permissions.ts` (access control de Better
+  Auth, compartido server/cliente). Rol de plataforma (`user.role`, plugin
+  `admin`): `user` | `superadmin` — superadmin ve `/admin` y puede abrir
+  cualquier gym.
+- **La conexión a Postgres debe ser un rol no superusuario** (RLS se ignora
+  para superusuarios). Ver `docker/postgres-init.sql` y `scripts/pg-local.mjs`.
+- Invitaciones: sin email transaccional en v1; el owner/admin copia el
+  enlace `/invite/[id]` desde Configuración → Equipo. `/register?next=/invite/…`
+  crea solo la cuenta (sin gimnasio).
+
+### Rutas
+
+| Ruta                  | Quién             | Qué                                                            |
+| --------------------- | ----------------- | -------------------------------------------------------------- |
+| `/login`, `/register` | público           | Auth. Registro = wizard cuenta → gimnasio.                     |
+| `/app`                | sesión            | Redirige al gym activo, o a `/onboarding` si no tiene ninguno. |
+| `/app/[orgSlug]/…`    | miembro de la org | Todo el tenant (`requireOrg`).                                 |
+| `/invite/[id]`        | sesión            | Acepta invitación (valida correo, vencimiento, estado).        |
+| `/onboarding`         | sesión            | Crear otro gimnasio.                                           |
+| `/admin`              | superadmin        | Lista de tenants.                                              |
+| `/api/auth/*`         | —                 | Better Auth.                                                   |
+
+`src/proxy.ts` (Next 16, antes `middleware`) solo comprueba la cookie de
+sesión y redirige a `/login?next=`; la validación real (sesión, membresía,
+suspensión) ocurre en `src/lib/auth/session.ts`.
 
 ## Estructura
 
