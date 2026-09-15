@@ -51,3 +51,23 @@ pnpm verify          # lint + typecheck + test — correr antes de cada commit d
 pnpm test:e2e         # Playwright (requiere pnpm dev o lo levanta el propio config)
 docker compose up -d postgres   # DB local (Fase 1+)
 ```
+
+## Base compartida (Fase 2+)
+
+- Schema de negocio en `src/db/schema/business.ts` (members, plans,
+  subscriptions, payments, audit_log) — migraciones `0002`/`0003` ya
+  aplicadas. **No crear migraciones nuevas sin coordinar**: si un módulo
+  necesita cambiar el schema, anotarlo en el reporte final en vez de generar
+  `0004_*`.
+- Helpers: `src/lib/money.ts` (centavos/COP), `src/lib/dates.ts`
+  (`computeEndDate`, `todayISO`, TZ Bogotá), `src/modules/audit`
+  (`audit(tx, …)` dentro de `withTenant`), `src/lib/auth/authorize.ts`
+  (`requirePermission(orgSlug, { gymMember: ["create"] })` en Server Actions).
+- Patrón por módulo (`src/modules/<x>/`): `schema.ts` (zod), `queries.ts`
+  (lecturas con `withTenant`), `actions.ts` (`"use server"`, valida con
+  zod, `requirePermission`, `withTenant` + `audit`, `revalidatePath`).
+- Páginas del tenant en `src/app/app/[orgSlug]/<x>/` usando `PageHeader`.
+- Títulos de `Card` que actúan como encabezado: `role="heading" aria-level={2}`.
+- `Button` que renderiza `Link`: `nativeButton={false} render={<Link … />}`.
+- Constantes/labels que se usen en Server Components NO van en módulos
+  `"use client"` (llegan como `undefined`): ponerlas en `src/lib/**`.
