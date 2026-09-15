@@ -57,3 +57,6 @@ next-env.d.ts
 
 # worktrees de subagentes
 /.claude/worktrees/
+
+# logs locales
+.next-dev.log
