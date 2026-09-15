@@ -54,3 +54,6 @@ next-env.d.ts
 
 # Postgres local (initdb, puerto 5433)
 /.pgdata/
+
+# logs locales
+.next-dev.log

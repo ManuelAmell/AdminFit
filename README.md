@@ -73,6 +73,22 @@ UPDATE "user" SET role = 'superadmin' WHERE email = 'tu@correo.com';
 Commits en [Conventional Commits](https://www.conventionalcommits.org/)
 (`feat:`, `fix:`, `chore:`, `test:`, `docs:`).
 
+## Cron de expiración de membresías
+
+`POST /api/cron/expire` marca como `expired` las membresías activas cuya fecha
+de fin ya pasó (todas las orgs). Requiere `Authorization: Bearer $CRON_SECRET`.
+El estado que ve la UI se deriva en tiempo real (por vencer / en gracia / vencida),
+así que el cron solo consolida el dato para reportes. Programarlo diario, por
+ejemplo a las 00:10 de Bogotá:
+
+```bash
+# crontab (servidor) — 05:10 UTC = 00:10 America/Bogota
+10 5 * * * curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" https://tu-dominio/api/cron/expire
+```
+
+En Vercel: `vercel.json` → `{ "crons": [{ "path": "/api/cron/expire", "schedule": "10 5 * * *" }] }`
+y define `CRON_SECRET` en las variables del proyecto.
+
 ## Tests
 
 - `tests/unit/` — Vitest (jsdom).

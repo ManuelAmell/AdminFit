@@ -33,6 +33,7 @@
     "@hookform/resolvers": "^5.9.1",
     "better-auth": "^1.7.5",
     "class-variance-authority": "^0.7.1",
+    "cmdk": "^1.1.1",
     "cn": "^0.3.0",
     "date-fns": "^4.4.0",
     "date-fns-tz": "^3.2.0",

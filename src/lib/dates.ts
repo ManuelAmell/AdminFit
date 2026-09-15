@@ -1,5 +1,6 @@
 import { addDays, addMonths, differenceInCalendarDays, format, parseISO } from "date-fns";
 import { TZDate } from "@date-fns/tz";
+import { es } from "date-fns/locale";
 
 export const DEFAULT_TZ = "America/Bogota";
 
@@ -38,6 +39,8 @@ export const dateTimeFmt = new Intl.DateTimeFormat("es-CO", {
   timeZone: DEFAULT_TZ,
 });
 
+// date-fns + locale es: salida idéntica en Node y navegador (Intl "es-CO" difiere entre ICU
+// de servidor y cliente → hydration mismatch). Ej: "28 feb 2026".
 export function formatDate(iso: string | Date): string {
-  return dateFmt.format(typeof iso === "string" ? parseISO(iso) : iso);
+  return format(typeof iso === "string" ? parseISO(iso) : iso, "d MMM yyyy", { locale: es });
 }
