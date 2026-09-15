@@ -16,8 +16,7 @@ import { formatCOP } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import { PLAN_COLOR_DOT, durationLabel, type PlanColor } from "@/modules/plans/schema";
 import { sellSubscription } from "@/modules/subscriptions/actions";
-import { MemberPicker, memberLabel } from "@/modules/subscriptions/member-picker";
-import type { MemberPick } from "@/modules/subscriptions/queries";
+import { MemberPicker, memberLabel, type PickedMember } from "@/components/forms/member-picker";
 import { computeEndDate } from "@/modules/subscriptions/rules";
 
 type PlanOpt = {
@@ -38,11 +37,11 @@ export function SellForm({
 }: {
   orgSlug: string;
   plans: PlanOpt[];
-  preselectedMember: MemberPick | null;
+  preselectedMember: PickedMember | null;
   today: string;
 }) {
   const router = useRouter();
-  const [member, setMember] = useState<MemberPick | null>(preselectedMember);
+  const [member, setMember] = useState<PickedMember | null>(preselectedMember);
   const [planId, setPlanId] = useState<string>(plans[0]?.id ?? "");
   const [startDate, setStartDate] = useState(today);
   const [notes, setNotes] = useState("");
@@ -122,7 +121,7 @@ export function SellForm({
             <Field data-invalid={!!errors.memberId}>
               <FieldLabel htmlFor="sell-member">Socio</FieldLabel>
               <MemberPicker
-                id="sell-member"
+                inputId="sell-member"
                 orgSlug={orgSlug}
                 value={member}
                 onChange={(m) => {

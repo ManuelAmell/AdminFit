@@ -50,10 +50,9 @@ test.describe.serial("planes y membresías", () => {
     await page.goto(`/app/${gym.slug}/memberships`);
     await page.getByRole("button", { name: "Vender membresía" }).click();
     await expect(page).toHaveURL(new RegExp(`/memberships/new$`), { timeout: 60_000 });
-    await page.getByRole("combobox", { name: /socio/i }).click();
-    await page.getByLabel("Buscar socio").fill("carl");
+    await page.getByRole("combobox", { name: /socio/i }).fill("carl");
     await page.getByRole("option", { name: /Carlos Socio/ }).click();
-    await expect(page.getByRole("combobox", { name: /socio/i })).toContainText("Carlos Socio");
+    await expect(page.getByRole("button", { name: "Cambiar socio" })).toBeVisible();
     await page.getByLabel("Fecha de inicio").fill("2026-01-31");
     await expect(page.getByTestId("sell-end-date")).toHaveText(/28 feb 2026/);
     await page.getByRole("button", { name: "Vender membresía" }).click();

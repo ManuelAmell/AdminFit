@@ -27,7 +27,7 @@ import {
   REFERENCE_REQUIRED_METHODS,
   type PaymentMethod,
 } from "@/modules/payments/constants";
-import { MemberPicker, type PickedMember } from "@/modules/payments/member-picker";
+import { MemberPicker, type PickedMember } from "@/components/forms/member-picker";
 import { registerPaymentSchema, type RegisterPaymentInput } from "@/modules/payments/schema";
 
 type Billing = Awaited<ReturnType<typeof getMemberBillingContextAction>>;

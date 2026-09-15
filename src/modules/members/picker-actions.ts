@@ -2,13 +2,13 @@
 
 import { and, asc, eq, ilike, isNull, or, sql } from "drizzle-orm";
 import { members } from "@/db/schema";
-import { requireOrg } from "@/lib/auth/session";
+import { requirePermission } from "@/lib/auth/authorize";
 import { withTenant } from "@/lib/tenant";
-import type { MemberPick } from "./queries";
+import type { PickedMember } from "./picker";
 
-// Server Action para el combobox de socios (búsqueda simple por nombre/documento).
-export async function searchMembersForPicker(orgSlug: string, q: string): Promise<MemberPick[]> {
-  const { org } = await requireOrg(orgSlug);
+// Búsqueda para el combobox de socios (membresías, pagos). Con query vacía devuelve los últimos.
+export async function searchMembersForPicker(orgSlug: string, q: string): Promise<PickedMember[]> {
+  const { org } = await requirePermission(orgSlug, { gymMember: ["read"] });
   const term = q.trim();
   return withTenant(org.id, (tx) =>
     tx
@@ -16,6 +16,7 @@ export async function searchMembersForPicker(orgSlug: string, q: string): Promis
         id: members.id,
         firstName: members.firstName,
         lastName: members.lastName,
+        documentType: members.documentType,
         documentNumber: members.documentNumber,
         status: members.status,
       })
@@ -26,15 +27,16 @@ export async function searchMembersForPicker(orgSlug: string, q: string): Promis
           isNull(members.deletedAt),
           term
             ? or(
-                ilike(members.firstName, `%${term}%`),
-                ilike(members.lastName, `%${term}%`),
-                ilike(members.documentNumber, `%${term}%`),
                 ilike(sql`${members.firstName} || ' ' || ${members.lastName}`, `%${term}%`),
+                ilike(members.documentNumber, `%${term}%`),
               )
             : undefined,
         ),
       )
-      .orderBy(asc(members.lastName), asc(members.firstName))
+      .orderBy(
+        term ? asc(members.lastName) : sql`${members.createdAt} desc`,
+        asc(members.firstName),
+      )
       .limit(10),
   );
 }

@@ -9,6 +9,7 @@ import {
 } from "@/db/schema";
 import { todayISO } from "@/lib/dates";
 import { withTenant } from "@/lib/tenant";
+import type { PickedMember } from "@/modules/members/picker";
 import { deriveStatus, EXPIRING_SOON_DAYS, type DerivedStatus } from "./rules";
 import { listSubscriptionsSchema, type ListSubscriptionsInput } from "./schema";
 
@@ -188,21 +189,14 @@ export async function getSubscription(
   });
 }
 
-export type MemberPick = {
-  id: string;
-  firstName: string;
-  lastName: string;
-  documentNumber: string;
-  status: string;
-};
-
-export async function getMemberPick(orgId: string, memberId: string): Promise<MemberPick | null> {
+export async function getMemberPick(orgId: string, memberId: string): Promise<PickedMember | null> {
   return withTenant(orgId, async (tx) => {
     const [row] = await tx
       .select({
         id: members.id,
         firstName: members.firstName,
         lastName: members.lastName,
+        documentType: members.documentType,
         documentNumber: members.documentNumber,
         status: members.status,
       })

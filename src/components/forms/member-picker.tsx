@@ -6,16 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
-import { searchMembersAction } from "./actions";
+import { memberLabel, type PickedMember } from "@/modules/members/picker";
+import { searchMembersForPicker } from "@/modules/members/picker-actions";
 
-export type PickedMember = {
-  id: string;
-  firstName: string;
-  lastName: string;
-  documentType: string;
-  documentNumber: string;
-  status?: string;
-};
+export type { PickedMember };
+export { memberLabel };
 
 export function MemberPicker({
   orgSlug,
@@ -23,12 +18,14 @@ export function MemberPicker({
   onChange,
   inputId,
   invalid,
+  disabled,
 }: {
   orgSlug: string;
   value: PickedMember | null;
   onChange: (member: PickedMember | null) => void;
   inputId?: string;
   invalid?: boolean;
+  disabled?: boolean;
 }) {
   const listId = useId();
   const [query, setQuery] = useState("");
@@ -44,22 +41,21 @@ export function MemberPicker({
     };
   }, []);
 
-  function handleQueryChange(next: string) {
-    setQuery(next);
+  function search(next: string) {
     if (timer.current) clearTimeout(timer.current);
-    if (next.trim().length < 2) {
-      setResults([]);
-      setOpen(false);
-      return;
-    }
     timer.current = setTimeout(() => {
       startTransition(async () => {
-        const rows = await searchMembersAction(orgSlug, next);
+        const rows = await searchMembersForPicker(orgSlug, next);
         setResults(rows);
         setActive(0);
         setOpen(true);
       });
-    }, 250);
+    }, 200);
+  }
+
+  function handleQueryChange(next: string) {
+    setQuery(next);
+    search(next);
   }
 
   if (value) {
@@ -69,9 +65,7 @@ export function MemberPicker({
           <UserRound className="size-4" aria-hidden="true" />
         </span>
         <div className="flex min-w-0 flex-1 flex-col leading-tight">
-          <span className="truncate font-medium">
-            {value.firstName} {value.lastName}
-          </span>
+          <span className="truncate font-medium">{memberLabel(value)}</span>
           <span className="text-muted-foreground text-xs">
             {value.documentType} {value.documentNumber}
           </span>
@@ -111,7 +105,8 @@ export function MemberPicker({
         className="h-11 pl-9"
         value={query}
         onChange={(e) => handleQueryChange(e.target.value)}
-        onFocus={() => results.length && setOpen(true)}
+        disabled={disabled}
+        onFocus={() => (results.length ? setOpen(true) : search(query))}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
         onKeyDown={(e) => {
           if (!open || results.length === 0) return;
@@ -139,7 +134,7 @@ export function MemberPicker({
         >
           {results.length === 0 ? (
             <li className="text-muted-foreground px-3 py-2 text-sm">
-              Sin resultados para “{query}”.
+              {query ? `Sin resultados para “${query}”.` : "No hay socios registrados."}
             </li>
           ) : (
             results.map((m, i) => (
@@ -159,16 +154,12 @@ export function MemberPicker({
                 }}
               >
                 <span className="flex min-w-0 flex-1 flex-col leading-tight">
-                  <span className="truncate font-medium">
-                    {m.firstName} {m.lastName}
-                  </span>
+                  <span className="truncate font-medium">{memberLabel(m)}</span>
                   <span className="text-muted-foreground text-xs">
                     {m.documentType} {m.documentNumber}
                   </span>
                 </span>
-                {m.status && m.status !== "active" && (
-                  <span className="text-warning text-xs">Inactivo</span>
-                )}
+                {m.status !== "active" && <span className="text-warning text-xs">Inactivo</span>}
               </li>
             ))
           )}

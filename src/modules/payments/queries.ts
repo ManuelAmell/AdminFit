@@ -1,6 +1,6 @@
 import { TZDate } from "@date-fns/tz";
 import { endOfDay, endOfMonth, parseISO, startOfDay, startOfMonth, startOfWeek } from "date-fns";
-import { and, asc, count, desc, eq, gte, ilike, isNull, lte, or, sql, sum } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, isNull, lte, or, sum } from "drizzle-orm";
 import {
   members,
   orgSettings,
@@ -225,35 +225,6 @@ export async function getMemberBillingContext(orgId: string, memberId: string) {
     );
     return { member: m, subscriptions: withBalance };
   });
-}
-
-export async function searchMembers(orgId: string, query: string, limit = 8) {
-  const q = query.trim();
-  if (q.length < 2) return [];
-  return withTenant(orgId, (tx) =>
-    tx
-      .select({
-        id: members.id,
-        firstName: members.firstName,
-        lastName: members.lastName,
-        documentType: members.documentType,
-        documentNumber: members.documentNumber,
-        status: members.status,
-      })
-      .from(members)
-      .where(
-        and(
-          eq(members.orgId, orgId),
-          isNull(members.deletedAt),
-          or(
-            ilike(sql`${members.firstName} || ' ' || ${members.lastName}`, `%${q}%`),
-            ilike(members.documentNumber, `%${q}%`),
-          ),
-        ),
-      )
-      .orderBy(asc(members.lastName), asc(members.firstName))
-      .limit(limit),
-  );
 }
 
 export async function getOrgReceiptInfo(orgId: string) {
