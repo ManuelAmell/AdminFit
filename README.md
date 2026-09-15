@@ -19,9 +19,29 @@ PostgreSQL · Drizzle ORM · Better Auth · pnpm.
 
 ```bash
 pnpm install
-cp .env.example .env          # completar DATABASE_URL / BETTER_AUTH_SECRET
-docker compose up -d postgres # DB local (Fase 1+)
+cp .env.example .env          # completar DATABASE_URL / BETTER_AUTH_SECRET (openssl rand -base64 32)
+
+# Base de datos — opción A: Docker
+docker compose up -d postgres   # crea el rol de app `adminfit_app` (docker/postgres-init.sql)
+
+# Base de datos — opción B: sin Docker, con los binarios de PostgreSQL instalados
+pnpm db:local init              # cluster en ./.pgdata, puerto 5433, rol `adminfit_app`
+pnpm db:local start|stop|status
+
+pnpm db:migrate               # aplica ./drizzle (incluye policies RLS)
 pnpm dev                      # http://localhost:3000
+```
+
+> **Importante:** la app debe conectarse con un rol **no superusuario** (`adminfit_app`).
+> Postgres ignora Row Level Security para superusuarios y se perdería el aislamiento entre
+> gimnasios. El test `tests/integration/tenant-isolation.test.ts` falla si esto no se cumple.
+
+### Superadmin (plataforma)
+
+Para ver `/admin`, asigna el rol de plataforma a tu usuario:
+
+```sql
+UPDATE "user" SET role = 'superadmin' WHERE email = 'tu@correo.com';
 ```
 
 ## Scripts
@@ -55,5 +75,6 @@ Commits en [Conventional Commits](https://www.conventionalcommits.org/)
 
 ## Tests
 
-- `tests/unit/` y `tests/integration/` — Vitest.
-- `tests/e2e/` — Playwright (levanta `pnpm dev` automáticamente).
+- `tests/unit/` — Vitest (jsdom).
+- `tests/integration/` — Vitest contra la DB real de `DATABASE_URL` (aplica migraciones al inicio).
+- `tests/e2e/` — Playwright (levanta `pnpm dev` automáticamente; requiere DB).

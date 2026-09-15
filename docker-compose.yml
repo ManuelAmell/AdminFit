@@ -10,6 +10,7 @@ services:
       - "5432:5432"
     volumes:
       - adminfit_postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres-init.sql:/docker-entrypoint-initdb.d/01-app-role.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U adminfit -d adminfit"]
       interval: 5s

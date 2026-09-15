@@ -1,5 +1,7 @@
 import { Dumbbell, Users, CreditCard, LayoutDashboard } from "lucide-react";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 const modules = [
@@ -29,7 +31,7 @@ export default function Home() {
         </span>
         <div className="flex flex-col items-center gap-2">
           <Badge variant="secondary" className="font-medium">
-            En construcción — Fase 0
+            En construcción — Fase 1
           </Badge>
           <h1 className="text-foreground text-3xl font-semibold tracking-tight sm:text-4xl">
             AdminFit
@@ -38,6 +40,25 @@ export default function Home() {
             Plataforma multi-tenant para administrar socios, membresías y pagos de gimnasios en
             Colombia.
           </p>
+          <div className="mt-2 flex flex-col gap-3 sm:flex-row">
+            <Button
+              size="lg"
+              className="h-11 px-5"
+              nativeButton={false}
+              render={<Link href="/register" />}
+            >
+              Registra tu gimnasio
+            </Button>
+            <Button
+              variant="outline"
+              size="lg"
+              className="h-11 px-5"
+              nativeButton={false}
+              render={<Link href="/login" />}
+            >
+              Iniciar sesión
+            </Button>
+          </div>
         </div>
       </div>
 
