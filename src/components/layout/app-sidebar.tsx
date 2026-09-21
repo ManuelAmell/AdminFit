@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -202,10 +203,14 @@ export function AppSidebar({
                 />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" side="top" className="w-56">
-                <DropdownMenuLabel className="font-normal">
-                  <span className="block truncate font-medium">{user.name}</span>
-                  <span className="text-muted-foreground block truncate text-xs">{user.email}</span>
-                </DropdownMenuLabel>
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel className="font-normal">
+                    <span className="block truncate font-medium">{user.name}</span>
+                    <span className="text-muted-foreground block truncate text-xs">
+                      {user.email}
+                    </span>
+                  </DropdownMenuLabel>
+                </DropdownMenuGroup>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem variant="destructive" onClick={handleSignOut}>
                   <LogOut />
