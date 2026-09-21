@@ -29,7 +29,7 @@ export async function registerPaymentCore(
   },
 ) {
   const [member] = await tx
-    .select({ id: members.id })
+    .select({ id: members.id, branchId: members.branchId })
     .from(members)
     .where(and(eq(members.id, data.memberId), isNull(members.deletedAt)))
     .limit(1);
@@ -53,6 +53,7 @@ export async function registerPaymentCore(
       orgId: ctx.orgId,
       memberId: data.memberId,
       subscriptionId: data.subscriptionId ?? null,
+      branchId: member.branchId,
       amountCents: data.amountCents,
       method: data.method,
       reference: data.reference || null,
