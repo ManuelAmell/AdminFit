@@ -54,3 +54,12 @@ next-env.d.ts
 
 # Postgres local (initdb, puerto 5433)
 /.pgdata/
+
+# worktrees de subagentes
+/.claude/worktrees/
+
+# logs locales
+.next-dev.log
+
+# credenciales de prueba locales (generadas por src/db/seed.ts)
+CREDENCIALES_PRUEBA.local.md

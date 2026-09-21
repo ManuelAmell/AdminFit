@@ -30,8 +30,10 @@ export const auth = betterAuth({
   session: {
     cookieCache: { enabled: true, maxAge: 5 * 60 },
   },
+  // Solo en producción (default de Better Auth): sign-up/sign-in limitan a 3 req/10s por IP,
+  // lo que rompería los e2e locales que registran varias cuentas seguidas.
   rateLimit: {
-    enabled: true,
+    enabled: process.env.NODE_ENV === "production",
     window: 60,
     max: 100,
   },

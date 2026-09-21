@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { db } from "@/db";
 import { member } from "@/db/schema";
 import { AppSidebar } from "@/components/layout/app-sidebar";
+import { ImpersonationBanner } from "@/components/layout/impersonation-banner";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { getCurrentSession, requireOrg } from "@/lib/auth/session";
 
@@ -37,7 +38,10 @@ export default async function OrgLayout({ children, params }: LayoutProps<"/app/
           isSuperadmin,
         }}
       />
-      <SidebarInset>{children}</SidebarInset>
+      <SidebarInset>
+        {session?.session.impersonatedBy && <ImpersonationBanner />}
+        {children}
+      </SidebarInset>
     </SidebarProvider>
   );
 }

@@ -8,7 +8,7 @@ import { parsePesosInput } from "@/lib/money";
 import { withTenant } from "@/lib/tenant";
 import { audit } from "@/modules/audit";
 import { registerPaymentCore } from "./core";
-import { getMemberBillingContext, searchMembers } from "./queries";
+import { getMemberBillingContext } from "./queries";
 import { registerPaymentSchema, voidPaymentSchema, type RegisterPaymentInput } from "./schema";
 
 export type ActionResult<T = undefined> =
@@ -111,11 +111,6 @@ export async function voidPayment(
   } catch (err) {
     return fail(err);
   }
-}
-
-export async function searchMembersAction(orgSlug: string, query: string) {
-  const ctx = await requirePermission(orgSlug, { gymMember: ["read"] });
-  return searchMembers(ctx.org.id, query);
 }
 
 export async function getMemberBillingContextAction(orgSlug: string, memberId: string) {

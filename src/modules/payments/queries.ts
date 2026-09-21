@@ -1,7 +1,8 @@
 import { TZDate } from "@date-fns/tz";
 import { endOfDay, endOfMonth, parseISO, startOfDay, startOfMonth, startOfWeek } from "date-fns";
-import { and, asc, count, desc, eq, gte, ilike, isNull, lte, or, sql, sum } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, isNull, lte, or, sum } from "drizzle-orm";
 import {
+  branches,
   members,
   orgSettings,
   organization,
@@ -53,6 +54,21 @@ function paymentConditions(orgId: string, filters: PaymentFilters) {
     filters.status ? eq(payments.status, filters.status) : undefined,
     filters.memberId ? eq(payments.memberId, filters.memberId) : undefined,
   );
+}
+
+// Solo el total de pagos completados, sin traer filas de pagos (para KPIs/dashboard).
+export async function getCompletedPaymentsTotal(
+  orgId: string,
+  filters: PaymentFilters,
+): Promise<number> {
+  return withTenant(orgId, async (tx) => {
+    const where = and(paymentConditions(orgId, filters), eq(payments.status, "completed"));
+    const [row] = await tx
+      .select({ total: sum(payments.amountCents).mapWith(Number) })
+      .from(payments)
+      .where(where);
+    return row?.total ?? 0;
+  });
 }
 
 export async function listPayments(orgId: string, filters: PaymentFilters) {
@@ -227,35 +243,6 @@ export async function getMemberBillingContext(orgId: string, memberId: string) {
   });
 }
 
-export async function searchMembers(orgId: string, query: string, limit = 8) {
-  const q = query.trim();
-  if (q.length < 2) return [];
-  return withTenant(orgId, (tx) =>
-    tx
-      .select({
-        id: members.id,
-        firstName: members.firstName,
-        lastName: members.lastName,
-        documentType: members.documentType,
-        documentNumber: members.documentNumber,
-        status: members.status,
-      })
-      .from(members)
-      .where(
-        and(
-          eq(members.orgId, orgId),
-          isNull(members.deletedAt),
-          or(
-            ilike(sql`${members.firstName} || ' ' || ${members.lastName}`, `%${q}%`),
-            ilike(members.documentNumber, `%${q}%`),
-          ),
-        ),
-      )
-      .orderBy(asc(members.lastName), asc(members.firstName))
-      .limit(limit),
-  );
-}
-
 export async function getOrgReceiptInfo(orgId: string) {
   return withTenant(orgId, async (tx) => {
     const [org] = await tx
@@ -299,10 +286,13 @@ export async function getCashClose(orgId: string, dateISO: string) {
         memberLastName: members.lastName,
         receivedById: payments.receivedBy,
         receivedByName: user.name,
+        branchId: payments.branchId,
+        branchName: branches.name,
       })
       .from(payments)
       .innerJoin(members, eq(members.id, payments.memberId))
       .leftJoin(user, eq(user.id, payments.receivedBy))
+      .leftJoin(branches, eq(branches.id, payments.branchId))
       .where(where)
       .orderBy(asc(payments.receiptNumber));
 
@@ -310,12 +300,21 @@ export async function getCashClose(orgId: string, dateISO: string) {
     const voided = rows.filter((r) => r.status === "voided");
     const byMethod = new Map<string, { total: number; n: number }>();
     const byUser = new Map<string, { name: string; total: number; n: number }>();
+    const byBranch = new Map<string, { id: string; name: string; total: number; n: number }>();
     for (const r of completed) {
       const m = byMethod.get(r.method) ?? { total: 0, n: 0 };
       byMethod.set(r.method, { total: m.total + r.amountCents, n: m.n + 1 });
       const key = r.receivedById ?? "—";
       const u = byUser.get(key) ?? { name: r.receivedByName ?? "Sin usuario", total: 0, n: 0 };
       byUser.set(key, { ...u, total: u.total + r.amountCents, n: u.n + 1 });
+      const branchKey = r.branchId ?? "—";
+      const b = byBranch.get(branchKey) ?? {
+        id: branchKey,
+        name: r.branchName ?? "Sin sede",
+        total: 0,
+        n: 0,
+      };
+      byBranch.set(branchKey, { ...b, total: b.total + r.amountCents, n: b.n + 1 });
     }
     return {
       completed,
@@ -323,6 +322,7 @@ export async function getCashClose(orgId: string, dateISO: string) {
       total: completed.reduce((a, r) => a + r.amountCents, 0),
       byMethod: [...byMethod.entries()].map(([method, v]) => ({ method, ...v })),
       byUser: [...byUser.values()],
+      byBranch: [...byBranch.values()],
     };
   });
 }

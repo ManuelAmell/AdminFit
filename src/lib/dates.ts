@@ -1,5 +1,6 @@
 import { addDays, addMonths, differenceInCalendarDays, format, parseISO } from "date-fns";
 import { TZDate } from "@date-fns/tz";
+import { es } from "date-fns/locale";
 
 export const DEFAULT_TZ = "America/Bogota";
 
@@ -10,6 +11,12 @@ export function todayISO(tz = DEFAULT_TZ): string {
 
 export function toISODate(d: Date): string {
   return format(d, "yyyy-MM-dd");
+}
+
+export function addDaysISO(iso: string, days: number): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
 }
 
 // Fecha fin de una membresía. Ej: mensual desde 2026-01-31 → 2026-02-28 (date-fns ajusta fin de mes).
@@ -38,6 +45,8 @@ export const dateTimeFmt = new Intl.DateTimeFormat("es-CO", {
   timeZone: DEFAULT_TZ,
 });
 
+// date-fns + locale es: salida idéntica en Node y navegador (Intl "es-CO" difiere entre ICU
+// de servidor y cliente → hydration mismatch). Ej: "28 feb 2026".
 export function formatDate(iso: string | Date): string {
-  return dateFmt.format(typeof iso === "string" ? parseISO(iso) : iso);
+  return format(typeof iso === "string" ? parseISO(iso) : iso, "d MMM yyyy", { locale: es });
 }

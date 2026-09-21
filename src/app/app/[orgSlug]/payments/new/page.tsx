@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { requirePermission } from "@/lib/auth/authorize";
 import { withTenant } from "@/lib/tenant";
-import type { PickedMember } from "@/modules/payments/member-picker";
+import type { PickedMember } from "@/components/forms/member-picker";
 import { NewPaymentForm } from "./new-payment-form";
 
 export const metadata: Metadata = { title: "Registrar pago — AdminFit" };

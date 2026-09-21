@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { count, eq, sql } from "drizzle-orm";
+import { asc, count, eq, sql } from "drizzle-orm";
 import Link from "next/link";
 import { db } from "@/db";
 import { member, organization } from "@/db/schema";
@@ -16,26 +16,39 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { requireSuperadmin } from "@/lib/auth/session";
+import { AdminOrgActions } from "./org-actions";
 
 export const metadata: Metadata = { title: "Plataforma — AdminFit" };
 
 export default async function AdminPage() {
   await requireSuperadmin();
 
-  const orgs = await db
-    .select({
-      id: organization.id,
-      name: organization.name,
-      slug: organization.slug,
-      city: organization.city,
-      status: organization.status,
-      createdAt: organization.createdAt,
-      members: count(member.id),
-    })
-    .from(organization)
-    .leftJoin(member, eq(member.organizationId, organization.id))
-    .groupBy(organization.id)
-    .orderBy(sql`${organization.createdAt} desc`);
+  const [orgs, owners] = await Promise.all([
+    db
+      .select({
+        id: organization.id,
+        name: organization.name,
+        slug: organization.slug,
+        city: organization.city,
+        status: organization.status,
+        createdAt: organization.createdAt,
+        members: count(member.id),
+      })
+      .from(organization)
+      .leftJoin(member, eq(member.organizationId, organization.id))
+      .groupBy(organization.id)
+      .orderBy(sql`${organization.createdAt} desc`),
+    db
+      .select({ orgId: member.organizationId, userId: member.userId })
+      .from(member)
+      .where(eq(member.role, "owner"))
+      .orderBy(asc(member.createdAt)),
+  ]);
+  // En el raro caso de varios "owner" por org, nos quedamos con el primero (más antiguo).
+  const ownerByOrg = new Map<string, string>();
+  for (const o of owners) {
+    if (!ownerByOrg.has(o.orgId)) ownerByOrg.set(o.orgId, o.userId);
+  }
 
   const dateFmt = new Intl.DateTimeFormat("es-CO", { dateStyle: "medium" });
 
@@ -87,14 +100,23 @@ export default async function AdminPage() {
                       {dateFmt.format(o.createdAt)}
                     </TableCell>
                     <TableCell className="pr-6 text-right">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        nativeButton={false}
-                        render={<Link href={`/app/${o.slug}/dashboard`} />}
-                      >
-                        Abrir
-                      </Button>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          nativeButton={false}
+                          render={<Link href={`/app/${o.slug}/dashboard`} />}
+                        >
+                          Abrir
+                        </Button>
+                        <AdminOrgActions
+                          orgId={o.id}
+                          orgSlug={o.slug}
+                          orgName={o.name}
+                          status={o.status ?? "active"}
+                          ownerUserId={ownerByOrg.get(o.id) ?? null}
+                        />
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

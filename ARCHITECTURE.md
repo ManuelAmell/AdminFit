@@ -113,8 +113,19 @@ la UI, cifras tabulares en montos y tablas. Tokens de tema en
 
 ## Roadmap
 
-**v1 (en curso)**: auth + multi-tenancy → socios y planes → membresías y
-pagos → dashboard/reportes → superadmin.
+**v1**: auth + multi-tenancy ✅ → socios ✅ → planes y membresías ✅ →
+pagos ✅ → dashboard con KPIs/reportes (pendiente) → superadmin completo
+(pendiente: suspender tenant, impersonar).
+
+Deuda técnica detectada por los módulos (no implementada, requiere
+migración `0004`):
+
+- FK compuestas `(org_id, member_id)` / `(org_id, plan_id)` en
+  `subscriptions` y `payments`: RLS aísla por `org_id`, pero a nivel DB una
+  org podría referenciar un socio/plan de otra (las actions ya lo impiden).
+- `payments.branch_id` para cierre de caja por sede; índice
+  `(org_id, status, paid_at)`.
+- Foto del socio (`members.photo_url` sin UI).
 
 **Después**:
 
