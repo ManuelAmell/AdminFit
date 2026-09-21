@@ -13,6 +13,12 @@ export function toISODate(d: Date): string {
   return format(d, "yyyy-MM-dd");
 }
 
+export function addDaysISO(iso: string, days: number): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 // Fecha fin de una membresía. Ej: mensual desde 2026-01-31 → 2026-02-28 (date-fns ajusta fin de mes).
 export function computeEndDate(
   startISO: string,

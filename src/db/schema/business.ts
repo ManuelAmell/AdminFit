@@ -1,6 +1,7 @@
 import {
   boolean,
   date,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -8,6 +9,7 @@ import {
   pgTable,
   text,
   timestamp,
+  unique,
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
@@ -52,6 +54,8 @@ export const members = pgTable(
     uniqueIndex("members_org_document_uidx").on(t.orgId, t.documentType, t.documentNumber),
     index("members_org_status_idx").on(t.orgId, t.status),
     index("members_org_last_name_idx").on(t.orgId, t.lastName),
+    // Habilita las FK compuestas (org_id, member_id) de subscriptions/payments.
+    unique("members_org_id_uidx").on(t.orgId, t.id),
   ],
 );
 
@@ -69,7 +73,11 @@ export const plans = pgTable(
     isActive: boolean("is_active").default(true).notNull(),
     sortOrder: integer("sort_order").default(0).notNull(),
   },
-  (t) => [index("plans_org_active_idx").on(t.orgId, t.isActive)],
+  (t) => [
+    index("plans_org_active_idx").on(t.orgId, t.isActive),
+    // Habilita la FK compuesta (org_id, plan_id) de subscriptions.
+    unique("plans_org_id_uidx").on(t.orgId, t.id),
+  ],
 );
 
 export const subscriptions = pgTable(
@@ -98,6 +106,17 @@ export const subscriptions = pgTable(
   (t) => [
     index("subscriptions_org_status_end_idx").on(t.orgId, t.status, t.endDate),
     index("subscriptions_member_idx").on(t.memberId),
+    // FK compuestas: impiden a nivel de DB que una org referencie el socio/plan de otra.
+    foreignKey({
+      name: "subscriptions_org_member_fk",
+      columns: [t.orgId, t.memberId],
+      foreignColumns: [members.orgId, members.id],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "subscriptions_org_plan_fk",
+      columns: [t.orgId, t.planId],
+      foreignColumns: [plans.orgId, plans.id],
+    }).onDelete("restrict"),
   ],
 );
 
@@ -111,6 +130,7 @@ export const payments = pgTable(
     subscriptionId: uuid("subscription_id").references(() => subscriptions.id, {
       onDelete: "set null",
     }),
+    branchId: uuid("branch_id").references(() => branches.id, { onDelete: "set null" }),
     amountCents: integer("amount_cents").notNull(),
     method: paymentMethodEnum("method").default("cash").notNull(),
     reference: text("reference"),
@@ -126,8 +146,14 @@ export const payments = pgTable(
   (t) => [
     uniqueIndex("payments_org_receipt_uidx").on(t.orgId, t.receiptNumber),
     index("payments_org_paid_at_idx").on(t.orgId, t.paidAt),
+    index("payments_org_status_paid_at_idx").on(t.orgId, t.status, t.paidAt),
     index("payments_member_idx").on(t.memberId),
     index("payments_subscription_idx").on(t.subscriptionId),
+    foreignKey({
+      name: "payments_org_member_fk",
+      columns: [t.orgId, t.memberId],
+      foreignColumns: [members.orgId, members.id],
+    }).onDelete("restrict"),
   ],
 );
 

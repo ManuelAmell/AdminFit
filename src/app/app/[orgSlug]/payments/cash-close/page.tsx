@@ -158,6 +158,38 @@ export default async function CashClosePage(
           </CardContent>
         </Card>
 
+        {close.byBranch.length > 1 && (
+          <Card>
+            <CardHeader>
+              <CardTitle role="heading" aria-level={2} className="text-base">
+                Por sede
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="pl-6">Sede</TableHead>
+                    <TableHead className="text-right">Pagos</TableHead>
+                    <TableHead className="pr-6 text-right">Total</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {close.byBranch.map((b) => (
+                    <TableRow key={b.id}>
+                      <TableCell className="pl-6">{b.name}</TableCell>
+                      <TableCell className="text-right tabular-nums">{b.n}</TableCell>
+                      <TableCell className="pr-6 text-right font-medium tabular-nums">
+                        {formatCOP(b.total)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
+
         <Card>
           <CardHeader>
             <CardTitle role="heading" aria-level={2} className="text-base">

@@ -7,7 +7,7 @@ import {
   type Plan,
   type Subscription,
 } from "@/db/schema";
-import { todayISO } from "@/lib/dates";
+import { addDaysISO, todayISO } from "@/lib/dates";
 import { withTenant } from "@/lib/tenant";
 import type { PickedMember } from "@/modules/members/picker";
 import { deriveStatus, EXPIRING_SOON_DAYS, type DerivedStatus } from "./rules";
@@ -38,10 +38,38 @@ async function getGraceDays(orgId: string): Promise<number> {
   });
 }
 
-function addDaysISO(iso: string, days: number): string {
-  const d = new Date(`${iso}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
+function countsFromRows(
+  countRows: { status: string; endDate: string; n: number }[],
+  today: string,
+  soon: string,
+): Record<"active" | "expiring" | "expired" | "frozen" | "cancelled", number> {
+  const counts = { active: 0, expiring: 0, expired: 0, frozen: 0, cancelled: 0 };
+  for (const c of countRows) {
+    if (c.status === "frozen") counts.frozen += c.n;
+    else if (c.status === "cancelled") counts.cancelled += c.n;
+    else if (c.status === "expired" || c.endDate < today) counts.expired += c.n;
+    else {
+      counts.active += c.n;
+      if (c.endDate <= soon) counts.expiring += c.n;
+    }
+  }
+  return counts;
+}
+
+// Solo los conteos por estado, sin traer filas de suscripciones (para KPIs/dashboard).
+export async function getSubscriptionCounts(
+  orgId: string,
+): Promise<Record<"active" | "expiring" | "expired" | "frozen" | "cancelled", number>> {
+  const today = todayISO();
+  const soon = addDaysISO(today, EXPIRING_SOON_DAYS);
+  return withTenant(orgId, async (tx) => {
+    const countRows = await tx
+      .select({ status: subscriptions.status, endDate: subscriptions.endDate, n: count() })
+      .from(subscriptions)
+      .where(and(eq(subscriptions.orgId, orgId), isNull(subscriptions.deletedAt)))
+      .groupBy(subscriptions.status, subscriptions.endDate);
+    return countsFromRows(countRows, today, soon);
+  });
 }
 
 export async function listSubscriptions(
@@ -117,16 +145,7 @@ export async function listSubscriptions(
         .groupBy(subscriptions.status, subscriptions.endDate),
     ]);
 
-    const counts = { active: 0, expiring: 0, expired: 0, frozen: 0, cancelled: 0 };
-    for (const c of countRows) {
-      if (c.status === "frozen") counts.frozen += c.n;
-      else if (c.status === "cancelled") counts.cancelled += c.n;
-      else if (c.status === "expired" || c.endDate < today) counts.expired += c.n;
-      else {
-        counts.active += c.n;
-        if (c.endDate <= soon) counts.expiring += c.n;
-      }
-    }
+    const counts = countsFromRows(countRows, today, soon);
 
     return {
       rows: rows.map((r) => ({

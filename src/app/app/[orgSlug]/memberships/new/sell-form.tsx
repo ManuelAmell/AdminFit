@@ -110,7 +110,7 @@ export function SellForm({
             <AlertDescription>{serverError}</AlertDescription>
           </Alert>
         )}
-        <Card>
+        <Card className="overflow-visible">
           <CardHeader>
             <CardTitle role="heading" aria-level={2}>
               1. Socio
