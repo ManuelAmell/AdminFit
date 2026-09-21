@@ -60,3 +60,6 @@ next-env.d.ts
 
 # logs locales
 .next-dev.log
+
+# credenciales de prueba locales (generadas por src/db/seed.ts)
+CREDENCIALES_PRUEBA.local.md
