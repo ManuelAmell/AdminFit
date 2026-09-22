@@ -33,7 +33,7 @@ export default async function TeamPage({ params }: PageProps<"/app/[orgSlug]/set
     <>
       <PageHeader title="Configuración" description="Personas con acceso a este gimnasio" />
       <div className="flex flex-1 flex-col gap-6 p-4 md:p-6">
-        <SettingsTabs orgSlug={org.slug} />
+        <SettingsTabs orgSlug={org.slug} isOwner={role === "owner"} />
         <TeamView
           orgId={org.id}
           currentUserId={userId}
