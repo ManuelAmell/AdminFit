@@ -97,3 +97,21 @@ export function dayRange(dateISO: string, tz = DEFAULT_TZ) {
   const d = new TZDate(parseISO(dateISO), tz);
   return { from: startOfDay(d), to: endOfDay(d) };
 }
+
+// Rango [from, to] de un mes calendario ("2026-09") en la TZ del gimnasio. Para reportes
+// mensuales (Fase 5.7b), donde el usuario elige el mes en vez de "este mes".
+export function monthRange(monthISO: string, tz = DEFAULT_TZ) {
+  const d = new TZDate(parseISO(`${monthISO}-01`), tz);
+  return { from: startOfMonth(d), to: endOfMonth(d) };
+}
+
+// Mes anterior a "2026-09" → "2026-08"; "2026-01" → "2025-12".
+export function previousMonthISO(monthISO: string): string {
+  const [y, m] = monthISO.split("-").map(Number);
+  const d = new Date(Date.UTC(y, m - 2, 1));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+export function currentMonthISO(tz = DEFAULT_TZ): string {
+  return todayISO(tz).slice(0, 7);
+}

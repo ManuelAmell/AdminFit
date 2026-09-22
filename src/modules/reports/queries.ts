@@ -1,8 +1,10 @@
 import { and, asc, eq, gte, isNull, lte, ne, sql } from "drizzle-orm";
-import { expenses, members, payments, plans, subscriptions } from "@/db/schema";
+import { expenses, payments, plans, members, subscriptions } from "@/db/schema";
 import {
   addDaysISO,
   DEFAULT_TZ,
+  monthRange,
+  previousMonthISO,
   resolveDateRange,
   todayISO,
   type DateRangeFilter,
@@ -10,6 +12,7 @@ import {
 import { withTenant } from "@/lib/tenant";
 import type { ExpenseCategory } from "@/modules/expenses/constants";
 import { getCompletedPaymentsTotal, getTotalDebtCents } from "@/modules/payments/queries";
+import type { PaymentConcept, PaymentMethod } from "@/modules/payments/constants";
 import { paymentFiltersSchema } from "@/modules/payments/schema";
 import { getSubscriptionCounts } from "@/modules/subscriptions/queries";
 import { EXPIRING_SOON_DAYS } from "@/modules/subscriptions/rules";
@@ -244,5 +247,105 @@ export async function getPlanPerformance(
       .orderBy(sql`3 desc`)
       .limit(8);
     return rows;
+  });
+}
+
+export type MonthlySummary = {
+  month: string;
+  incomeByConcept: { concept: PaymentConcept; cents: number }[];
+  incomeByMethod: { method: PaymentMethod; cents: number }[];
+  incomeTotal: number;
+  expensesByCategory: ExpenseSlice[];
+  expensesTotal: number;
+  profitCents: number;
+  previous: { incomeTotal: number; expensesTotal: number; profitCents: number };
+};
+
+// Resumen del mes elegido (Fase 5.7b) — a diferencia de las gráficas del dashboard
+// ("últimos N días/meses" fijo), aquí el usuario elige cualquier mes calendario.
+export async function getMonthlySummary(
+  orgId: string,
+  monthISO: string,
+  excludePayroll: boolean,
+): Promise<MonthlySummary> {
+  const { from, to } = monthRange(monthISO);
+  const prev = monthRange(previousMonthISO(monthISO));
+
+  return withTenant(orgId, async (tx) => {
+    const incomeWhere = (f: Date, t: Date) =>
+      and(
+        eq(payments.orgId, orgId),
+        isNull(payments.deletedAt),
+        eq(payments.status, "completed"),
+        gte(payments.paidAt, f),
+        lte(payments.paidAt, t),
+      );
+    const expenseWhere = (f: Date, t: Date) =>
+      and(
+        eq(expenses.orgId, orgId),
+        isNull(expenses.deletedAt),
+        eq(expenses.status, "completed"),
+        gte(expenses.spentAt, f),
+        lte(expenses.spentAt, t),
+        excludePayroll ? ne(expenses.category, "payroll") : undefined,
+      );
+
+    const [byConcept, byMethod, byCategory, prevIncome, prevExpense] = await Promise.all([
+      tx
+        .select({
+          concept: payments.concept,
+          cents: sql<number>`coalesce(sum(${payments.amountCents}), 0)`.mapWith(Number),
+        })
+        .from(payments)
+        .where(incomeWhere(from!, to!))
+        .groupBy(payments.concept)
+        .orderBy(sql`2 desc`),
+      tx
+        .select({
+          method: payments.method,
+          cents: sql<number>`coalesce(sum(${payments.amountCents}), 0)`.mapWith(Number),
+        })
+        .from(payments)
+        .where(incomeWhere(from!, to!))
+        .groupBy(payments.method)
+        .orderBy(sql`2 desc`),
+      tx
+        .select({
+          category: expenses.category,
+          cents: sql<number>`coalesce(sum(${expenses.amountCents}), 0)`.mapWith(Number),
+        })
+        .from(expenses)
+        .where(expenseWhere(from!, to!))
+        .groupBy(expenses.category)
+        .orderBy(sql`2 desc`),
+      tx
+        .select({ cents: sql<number>`coalesce(sum(${payments.amountCents}), 0)`.mapWith(Number) })
+        .from(payments)
+        .where(incomeWhere(prev.from!, prev.to!)),
+      tx
+        .select({ cents: sql<number>`coalesce(sum(${expenses.amountCents}), 0)`.mapWith(Number) })
+        .from(expenses)
+        .where(expenseWhere(prev.from!, prev.to!)),
+    ]);
+
+    const incomeTotal = byConcept.reduce((a, r) => a + r.cents, 0);
+    const expensesTotal = byCategory.reduce((a, r) => a + r.cents, 0);
+    const previousIncomeTotal = prevIncome[0]?.cents ?? 0;
+    const previousExpensesTotal = prevExpense[0]?.cents ?? 0;
+
+    return {
+      month: monthISO,
+      incomeByConcept: byConcept,
+      incomeByMethod: byMethod,
+      incomeTotal,
+      expensesByCategory: byCategory,
+      expensesTotal,
+      profitCents: incomeTotal - expensesTotal,
+      previous: {
+        incomeTotal: previousIncomeTotal,
+        expensesTotal: previousExpensesTotal,
+        profitCents: previousIncomeTotal - previousExpensesTotal,
+      },
+    };
   });
 }
