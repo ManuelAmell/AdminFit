@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
-import { ArrowLeft } from "lucide-react";
+import { AlertTriangle, ArrowLeft, CheckCircle2, TrendingDown, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
+import { MoneyFlow } from "@/components/motion/money-flow";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -16,11 +18,16 @@ import {
 import { can, requirePermission } from "@/lib/auth/authorize";
 import { DEFAULT_TZ, formatDate, todayISO } from "@/lib/dates";
 import { formatCOP } from "@/lib/money";
+import { getCashClosure } from "@/modules/cash/queries";
+import { listBranches } from "@/modules/members/queries";
 import { PAYMENT_METHOD_LABELS, type PaymentMethod } from "@/modules/payments/constants";
 import { PrintButton } from "@/modules/payments/print/print-button";
 import { PrintStyles } from "@/modules/payments/print/print-styles";
 import { getCashClose } from "@/modules/payments/queries";
 import { CashCloseDatePicker } from "./date-picker";
+import { CashCloseBranchPicker } from "./branch-picker";
+import { CloseCashForm } from "./close-cash-form";
+import { ReopenClosureDialog } from "./reopen-closure-dialog";
 
 export const metadata: Metadata = { title: "Cierre de caja — AdminFit" };
 
@@ -30,14 +37,33 @@ export default async function CashClosePage(
   props: PageProps<"/app/[orgSlug]/payments/cash-close">,
 ) {
   const { orgSlug } = await props.params;
-  const { date } = await props.searchParams;
+  const { date, branchId: branchIdParam } = await props.searchParams;
   const ctx = await requirePermission(orgSlug, { payment: ["read"] });
   const { org, role, isSuperadmin, userId } = ctx;
   // Sin `payment.readAll` (Recepción), el cierre se limita a lo que el propio usuario cobró:
   // nunca ve los totales ni los nombres de otros cajeros o de otras sedes.
   const canSeeAll = can({ role, isSuperadmin }, { payment: ["readAll"] });
+  // El arqueo ciego (Fase 5 slice 0) es sobre el CIERRE, no sobre el día: cashClosure.readAll
+  // (no payment.readAll) decide si se ve lo esperado y la diferencia.
+  const canSeeCashDetail = can({ role, isSuperadmin }, { cashClosure: ["readAll"] });
+  const canReopen = can({ role, isSuperadmin }, { cashClosure: ["reopen"] });
   const dateISO = typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : todayISO();
-  const close = await getCashClose(org.id, dateISO, canSeeAll ? {} : { receivedBy: userId });
+
+  const branches = await listBranches(org.id);
+  const branchId =
+    branches.length > 1
+      ? (branches.find((b) => b.id === branchIdParam)?.id ?? null)
+      : (branches[0]?.id ?? null);
+
+  const [close, closureRow] = await Promise.all([
+    getCashClose(org.id, dateISO, canSeeAll ? {} : { receivedBy: userId }),
+    getCashClosure(org.id, dateISO, branchId),
+  ]);
+  const closure = closureRow?.closure ?? null;
+  // Movimientos que entraron después de cerrar: se cerró y luego se siguió cobrando/gastando.
+  const lateMovements = closure
+    ? close.completed.filter((p) => p.paidAt > closure.createdAt).length
+    : 0;
   const base = `/app/${org.slug}/payments`;
 
   return (
@@ -49,6 +75,9 @@ export default async function CashClosePage(
           description={formatDate(dateISO)}
           actions={
             <>
+              {branches.length > 1 && (
+                <CashCloseBranchPicker branches={branches} value={branchId} />
+              )}
               <CashCloseDatePicker value={dateISO} />
               <Button
                 variant="outline"
@@ -70,6 +99,100 @@ export default async function CashClosePage(
         <div className="hidden print:block">
           <h1 className="text-xl font-semibold">Cierre de caja — {org.name}</h1>
           <p className="text-sm">{formatDate(dateISO)}</p>
+        </div>
+
+        <div data-print-hide>
+          {closure ? (
+            <Card>
+              <CardHeader>
+                <CardTitle
+                  role="heading"
+                  aria-level={2}
+                  className="flex items-center gap-2 text-base"
+                >
+                  <CheckCircle2 className="text-success size-4" aria-hidden="true" />
+                  Caja cerrada
+                </CardTitle>
+                <CardDescription>
+                  {closureRow?.closedByName ?? "Alguien"} cerró esta caja el{" "}
+                  {timeFmt.format(closure.createdAt)}.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-4">
+                <dl className="grid max-w-md grid-cols-2 gap-y-2 text-sm sm:grid-cols-4">
+                  <dt className="text-muted-foreground">Base</dt>
+                  <dd className="text-right tabular-nums sm:text-left">
+                    {formatCOP(closure.openingCashCents)}
+                  </dd>
+                  <dt className="text-muted-foreground">Contado</dt>
+                  <dd className="text-right tabular-nums sm:text-left">
+                    {formatCOP(closure.countedCashCents)}
+                  </dd>
+                  {canSeeCashDetail && (
+                    <>
+                      <dt className="text-muted-foreground">Esperado</dt>
+                      <dd className="text-right tabular-nums sm:text-left">
+                        {formatCOP(closure.expectedCashCents)}
+                      </dd>
+                      <dt className="text-muted-foreground">Diferencia</dt>
+                      <dd
+                        className={
+                          "flex items-center justify-end gap-1 text-right font-medium tabular-nums sm:justify-start sm:text-left " +
+                          (closure.differenceCents === 0
+                            ? ""
+                            : closure.differenceCents > 0
+                              ? "text-success"
+                              : "text-destructive")
+                        }
+                      >
+                        {closure.differenceCents > 0 && (
+                          <TrendingUp className="size-3.5" aria-hidden="true" />
+                        )}
+                        {closure.differenceCents < 0 && (
+                          <TrendingDown className="size-3.5" aria-hidden="true" />
+                        )}
+                        <MoneyFlow cents={Math.abs(closure.differenceCents)} />
+                      </dd>
+                    </>
+                  )}
+                </dl>
+                {closure.notes && (
+                  <p className="text-muted-foreground text-sm">Notas: {closure.notes}</p>
+                )}
+                {lateMovements > 0 && (
+                  <Alert className="border-warning/40 bg-warning/10">
+                    <AlertTriangle className="text-warning" />
+                    <AlertTitle>Movimientos después del cierre</AlertTitle>
+                    <AlertDescription>
+                      Se registraron {lateMovements} {lateMovements === 1 ? "pago" : "pagos"}{" "}
+                      después de que se cerró esta caja. La diferencia de arriba no los incluye.
+                    </AlertDescription>
+                  </Alert>
+                )}
+                {canReopen && (
+                  <div>
+                    <ReopenClosureDialog orgSlug={org.slug} closureId={closure.id} />
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle role="heading" aria-level={2} className="text-base">
+                  Cerrar caja de este día
+                </CardTitle>
+                <CardDescription>
+                  {canSeeCashDetail
+                    ? "Cuenta el efectivo y compáralo con lo esperado del sistema."
+                    : "Cuenta el efectivo en caja. No verás cuánto espera el sistema — así funciona el arqueo."}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <CloseCashForm orgSlug={org.slug} dateISO={dateISO} branchId={branchId} />
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         <section aria-label="Resumen" className="grid gap-4 md:grid-cols-3">
