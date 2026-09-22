@@ -20,7 +20,7 @@ import {
 import { SubmitButton, useSubmitFlash } from "@/components/motion/submit-button";
 import { Spinner } from "@/components/ui/spinner";
 import { formatDate } from "@/lib/dates";
-import { formatCOP, parsePesosInput } from "@/lib/money";
+import { formatCOP, formatPesosLive, parsePesosInput } from "@/lib/money";
 import { getMemberBillingContextAction, registerPayment } from "@/modules/payments/actions";
 import {
   PAYMENT_METHODS,
@@ -37,12 +37,6 @@ const methodItems = PAYMENT_METHODS.map((value) => ({
   value,
   label: PAYMENT_METHOD_LABELS[value],
 }));
-
-function formatPesosLive(raw: string) {
-  const digits = raw.replace(/[^\d]/g, "");
-  if (!digits) return "";
-  return new Intl.NumberFormat("es-CO").format(Number(digits));
-}
 
 function toLocalDatetimeValue(d: Date) {
   const pad = (n: number) => String(n).padStart(2, "0");

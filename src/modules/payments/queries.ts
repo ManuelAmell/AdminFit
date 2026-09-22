@@ -86,14 +86,17 @@ export async function listPayments(orgId: string, filters: PaymentFilters) {
           status: payments.status,
           paidAt: payments.paidAt,
           reference: payments.reference,
+          concept: payments.concept,
           memberId: payments.memberId,
+          payerName: payments.payerName,
           memberFirstName: members.firstName,
           memberLastName: members.lastName,
           memberDocument: members.documentNumber,
           receivedByName: user.name,
         })
         .from(payments)
-        .innerJoin(members, eq(members.id, payments.memberId))
+        // left, no inner: la venta rápida (5.3) no tiene socio.
+        .leftJoin(members, eq(members.id, payments.memberId))
         .leftJoin(user, eq(user.id, payments.receivedBy))
         .where(where)
         .orderBy(desc(payments.paidAt), desc(payments.receiptNumber))
@@ -153,7 +156,7 @@ export async function getPayment(orgId: string, paymentId: string) {
         receivedByName: user.name,
       })
       .from(payments)
-      .innerJoin(members, eq(members.id, payments.memberId))
+      .leftJoin(members, eq(members.id, payments.memberId))
       .leftJoin(subscriptions, eq(subscriptions.id, payments.subscriptionId))
       .leftJoin(plans, eq(plans.id, subscriptions.planId))
       .leftJoin(user, eq(user.id, payments.receivedBy))
@@ -289,6 +292,7 @@ export async function getCashClose(
         status: payments.status,
         paidAt: payments.paidAt,
         reference: payments.reference,
+        payerName: payments.payerName,
         memberFirstName: members.firstName,
         memberLastName: members.lastName,
         receivedById: payments.receivedBy,
@@ -297,7 +301,8 @@ export async function getCashClose(
         branchName: branches.name,
       })
       .from(payments)
-      .innerJoin(members, eq(members.id, payments.memberId))
+      // left, no inner: la venta rápida (5.3) no tiene socio (usa payerName en su lugar).
+      .leftJoin(members, eq(members.id, payments.memberId))
       .leftJoin(user, eq(user.id, payments.receivedBy))
       .leftJoin(branches, eq(branches.id, payments.branchId))
       .where(where)

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { parsePesosInput } from "@/lib/money";
-import { PAYMENT_METHODS, REFERENCE_REQUIRED_METHODS } from "./constants";
+import { PAYMENT_METHODS, REFERENCE_REQUIRED_METHODS, SELLABLE_CONCEPTS } from "./constants";
 
 export const registerPaymentSchema = z
   .object({
@@ -32,6 +32,43 @@ export const registerPaymentSchema = z
   });
 export type RegisterPaymentInput = z.input<typeof registerPaymentSchema>;
 export type RegisterPaymentData = z.output<typeof registerPaymentSchema>;
+
+// Venta rápida (Fase 5.3): pase del día, producto u otro cobro puntual — con socio
+// (member-picker) o sin él (nombre de quien paga). "membership" no está aquí: eso sigue
+// siendo el flujo normal de Registrar pago / Vender membresía.
+export const quickSaleSchema = z
+  .object({
+    concept: z.enum(SELLABLE_CONCEPTS),
+    memberId: z.uuid().nullable().optional(),
+    payerName: z.string().trim().max(120, "Máximo 120 caracteres").optional().default(""),
+    branchId: z.uuid().nullable().optional(),
+    amount: z
+      .string()
+      .trim()
+      .min(1, "Ingresa el monto")
+      .refine((v) => (parsePesosInput(v) ?? 0) > 0, "El monto debe ser mayor a cero"),
+    method: z.enum(PAYMENT_METHODS),
+    reference: z.string().trim().max(80, "Máximo 80 caracteres").optional().default(""),
+    notes: z.string().trim().max(500, "Máximo 500 caracteres").optional().default(""),
+  })
+  .superRefine((data, ctx) => {
+    if (!data.memberId && !data.payerName) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["payerName"],
+        message: "Busca un socio o ingresa el nombre de quien paga",
+      });
+    }
+    if (REFERENCE_REQUIRED_METHODS.includes(data.method) && !data.reference) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["reference"],
+        message: "Ingresa la referencia o número de aprobación",
+      });
+    }
+  });
+export type QuickSaleInput = z.input<typeof quickSaleSchema>;
+export type QuickSaleData = z.output<typeof quickSaleSchema>;
 
 export const voidPaymentSchema = z.object({
   paymentId: z.uuid(),

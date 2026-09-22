@@ -24,3 +24,14 @@ export function parsePesosInput(input: string): number | null {
   if (!digits) return null;
   return pesosToCents(Number(digits));
 }
+
+const thousandsFormatter = new Intl.NumberFormat("es-CO");
+
+// Para inputs de monto controlados: formatea con separador de miles mientras se escribe
+// ("150000" → "150.000"). Usar en el `onChange` del input, junto con `parsePesosInput`
+// para obtener los centavos al enviar.
+export function formatPesosLive(raw: string): string {
+  const digits = raw.replace(/[^\d]/g, "");
+  if (!digits) return "";
+  return thousandsFormatter.format(Number(digits));
+}

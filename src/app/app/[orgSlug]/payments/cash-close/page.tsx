@@ -235,7 +235,9 @@ export default async function CashClosePage(
                         </TableCell>
                         <TableCell className="tabular-nums">{timeFmt.format(p.paidAt)}</TableCell>
                         <TableCell>
-                          {p.memberFirstName} {p.memberLastName}
+                          {p.memberFirstName
+                            ? `${p.memberFirstName} ${p.memberLastName}`
+                            : (p.payerName ?? "Sin nombre")}
                         </TableCell>
                         <TableCell>
                           {PAYMENT_METHOD_LABELS[p.method]}
@@ -305,7 +307,9 @@ export default async function CashClosePage(
                         </TableCell>
                         <TableCell className="tabular-nums">{timeFmt.format(p.paidAt)}</TableCell>
                         <TableCell>
-                          {p.memberFirstName} {p.memberLastName}
+                          {p.memberFirstName
+                            ? `${p.memberFirstName} ${p.memberLastName}`
+                            : (p.payerName ?? "Sin nombre")}
                         </TableCell>
                         <TableCell>{PAYMENT_METHOD_LABELS[p.method]}</TableCell>
                         <TableCell className="pr-6 text-right tabular-nums line-through">
