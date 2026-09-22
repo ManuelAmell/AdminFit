@@ -5,14 +5,8 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { StaggerTableBody, StaggerTableRow } from "@/components/motion/stagger-list";
 import { roleCan } from "@/lib/auth/authorize";
 import { requireOrg } from "@/lib/auth/session";
 import { dateTimeFmt } from "@/lib/dates";
@@ -169,9 +163,9 @@ export default async function PaymentsPage(props: PageProps<"/app/[orgSlug]/paym
                       <TableHead className="pr-6">Estado</TableHead>
                     </TableRow>
                   </TableHeader>
-                  <TableBody>
-                    {result.rows.map((p) => (
-                      <TableRow key={p.id} data-payment-id={p.id}>
+                  <StaggerTableBody>
+                    {result.rows.map((p, index) => (
+                      <StaggerTableRow key={p.id} index={index} data-payment-id={p.id}>
                         <TableCell className="pl-6 font-mono text-xs">
                           <Link
                             href={`${base}/${p.id}`}
@@ -219,9 +213,9 @@ export default async function PaymentsPage(props: PageProps<"/app/[orgSlug]/paym
                             {PAYMENT_STATUS_LABELS[p.status]}
                           </Badge>
                         </TableCell>
-                      </TableRow>
+                      </StaggerTableRow>
                     ))}
-                  </TableBody>
+                  </StaggerTableBody>
                 </Table>
               </div>
             )}

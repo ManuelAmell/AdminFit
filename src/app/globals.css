@@ -52,6 +52,25 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+  /* Alias para los componentes de Smooth UI (src/components/smoothui/): en vez de la
+     paleta decorativa que trae el registry por defecto (rosa, ámbar/azul/verde propios),
+     se reusa el sistema de diseño del proyecto — acento naranja y semánticos existentes
+     (success/warning/info/destructive) — para que un botón o badge de Smooth UI no
+     desentone. Ver AGENTS.md "Sistema de diseño".*/
+  --color-brand: var(--primary);
+  --color-brand-secondary: color-mix(in oklab, var(--primary) 80%, transparent);
+  --color-amber: var(--warning);
+  --color-amber-fg: var(--warning-foreground);
+  --color-amber-hover: color-mix(in oklab, var(--warning) 80%, transparent);
+  --color-blue: var(--info);
+  --color-blue-fg: var(--info-foreground);
+  --color-blue-hover: color-mix(in oklab, var(--info) 80%, transparent);
+  --color-green: var(--success);
+  --color-green-fg: var(--success-foreground);
+  --color-green-hover: color-mix(in oklab, var(--success) 80%, transparent);
+  /* Tono neutro fuerte para el hover de variantes sin color (Tailwind trae neutral-800
+     por defecto; no hace falta definirlo). */
+  --color-smooth-900: var(--color-neutral-800);
 }
 
 :root {
