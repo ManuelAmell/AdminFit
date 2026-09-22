@@ -264,7 +264,13 @@ export async function getOrgReceiptInfo(orgId: string) {
   });
 }
 
-export async function getCashClose(orgId: string, dateISO: string) {
+// `scope.receivedBy` limita el cierre a los pagos de un usuario: se exige cuando quien
+// consulta no tiene `payment.readAll` (Recepción), para que no vea los cobros ajenos.
+export async function getCashClose(
+  orgId: string,
+  dateISO: string,
+  scope: { receivedBy?: string } = {},
+) {
   return withTenant(orgId, async (tx) => {
     const { from, to } = dayRange(dateISO);
     const where = and(
@@ -272,6 +278,7 @@ export async function getCashClose(orgId: string, dateISO: string) {
       isNull(payments.deletedAt),
       gte(payments.paidAt, from),
       lte(payments.paidAt, to),
+      scope.receivedBy ? eq(payments.receivedBy, scope.receivedBy) : undefined,
     );
     const rows = await tx
       .select({

@@ -13,7 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { requireOrg } from "@/lib/auth/session";
+import { can, requirePermission } from "@/lib/auth/authorize";
 import { DEFAULT_TZ, formatDate, todayISO } from "@/lib/dates";
 import { formatCOP } from "@/lib/money";
 import { PAYMENT_METHOD_LABELS, type PaymentMethod } from "@/modules/payments/constants";
@@ -31,9 +31,13 @@ export default async function CashClosePage(
 ) {
   const { orgSlug } = await props.params;
   const { date } = await props.searchParams;
-  const { org } = await requireOrg(orgSlug);
+  const ctx = await requirePermission(orgSlug, { payment: ["read"] });
+  const { org, role, isSuperadmin, userId } = ctx;
+  // Sin `payment.readAll` (Recepción), el cierre se limita a lo que el propio usuario cobró:
+  // nunca ve los totales ni los nombres de otros cajeros o de otras sedes.
+  const canSeeAll = can({ role, isSuperadmin }, { payment: ["readAll"] });
   const dateISO = typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : todayISO();
-  const close = await getCashClose(org.id, dateISO);
+  const close = await getCashClose(org.id, dateISO, canSeeAll ? {} : { receivedBy: userId });
   const base = `/app/${org.slug}/payments`;
 
   return (
@@ -120,45 +124,47 @@ export default async function CashClosePage(
           </Card>
         </section>
 
-        <Card>
-          <CardHeader>
-            <CardTitle role="heading" aria-level={2} className="text-base">
-              Por persona que recibió
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="px-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="pl-6">Usuario</TableHead>
-                  <TableHead className="text-right">Pagos</TableHead>
-                  <TableHead className="pr-6 text-right">Total</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {close.byUser.length === 0 ? (
+        {canSeeAll && (
+          <Card>
+            <CardHeader>
+              <CardTitle role="heading" aria-level={2} className="text-base">
+                Por persona que recibió
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-0">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={3} className="text-muted-foreground pl-6">
-                      Sin pagos completados.
-                    </TableCell>
+                    <TableHead className="pl-6">Usuario</TableHead>
+                    <TableHead className="text-right">Pagos</TableHead>
+                    <TableHead className="pr-6 text-right">Total</TableHead>
                   </TableRow>
-                ) : (
-                  close.byUser.map((u) => (
-                    <TableRow key={u.name}>
-                      <TableCell className="pl-6">{u.name}</TableCell>
-                      <TableCell className="text-right tabular-nums">{u.n}</TableCell>
-                      <TableCell className="pr-6 text-right font-medium tabular-nums">
-                        {formatCOP(u.total)}
+                </TableHeader>
+                <TableBody>
+                  {close.byUser.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={3} className="text-muted-foreground pl-6">
+                        Sin pagos completados.
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                  ) : (
+                    close.byUser.map((u) => (
+                      <TableRow key={u.name}>
+                        <TableCell className="pl-6">{u.name}</TableCell>
+                        <TableCell className="text-right tabular-nums">{u.n}</TableCell>
+                        <TableCell className="pr-6 text-right font-medium tabular-nums">
+                          {formatCOP(u.total)}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
 
-        {close.byBranch.length > 1 && (
+        {canSeeAll && close.byBranch.length > 1 && (
           <Card>
             <CardHeader>
               <CardTitle role="heading" aria-level={2} className="text-base">

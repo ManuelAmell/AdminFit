@@ -12,6 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { can } from "@/lib/auth/authorize";
 import { requireOrg } from "@/lib/auth/session";
 import { formatDate } from "@/lib/dates";
 import { formatCOP } from "@/lib/money";
@@ -21,8 +22,11 @@ export const metadata: Metadata = { title: "Dashboard — AdminFit" };
 
 export default async function DashboardPage({ params }: PageProps<"/app/[orgSlug]/dashboard">) {
   const { orgSlug } = await params;
-  const { org } = await requireOrg(orgSlug);
+  const ctx = await requireOrg(orgSlug);
+  const { org, role, isSuperadmin } = ctx;
   const base = `/app/${org.slug}`;
+  // Recepción no ve cifras agregadas del negocio (rediseño completo con gráficas en Fase 5.7).
+  const canSeeFinance = can({ role, isSuperadmin }, { finance: ["read"] });
 
   const { counts, revenueCentsThisMonth } = await getDashboardKpis(org.id);
 
@@ -92,11 +96,17 @@ export default async function DashboardPage({ params }: PageProps<"/app/[orgSlug
       value: String(counts.active),
       href: `${base}/memberships?filter=active`,
     },
-    {
-      label: "Ingresos este mes",
-      value: formatCOP(revenueCentsThisMonth),
-      href: `${base}/payments`,
-    },
+    // Ingresos es una cifra agregada del negocio: Recepción no la ve (Fase 5.7 trae el
+    // tablero "Mi turno" completo, sin totales, y "Negocio" con gráficas para owner/admin).
+    ...(canSeeFinance
+      ? [
+          {
+            label: "Ingresos este mes",
+            value: formatCOP(revenueCentsThisMonth),
+            href: `${base}/payments`,
+          },
+        ]
+      : []),
     {
       label: "Por vencer (5 días)",
       value: String(counts.expiring),

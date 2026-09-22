@@ -52,13 +52,13 @@ export function AppSidebar({
 }: {
   org: SidebarOrg;
   orgs: SidebarOrg[];
-  role: string;
+  role: OrgRole;
   user: SidebarUser;
 }) {
   const pathname = usePathname();
   const router = useRouter();
   const { setOpenMobile } = useSidebar();
-  const nav = orgNav(org.slug);
+  const nav = orgNav(org.slug, { role, isSuperadmin: user.isSuperadmin });
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
   async function switchOrg(target: SidebarOrg) {
