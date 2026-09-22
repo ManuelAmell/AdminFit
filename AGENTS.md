@@ -38,6 +38,13 @@ Next.js 16 (App Router, Turbopack) + TypeScript + Tailwind v4 + shadcn/ui
   `delayDuration` no existen (es `delay` en `TooltipProvider`, por
   ejemplo). Verificar la firma real del componente en
   `src/components/ui/*` antes de usar props "recordadas" de Radix.
+- **Smooth UI vive en `src/components/smoothui/`**, no reemplaza
+  `src/components/ui/`. Es otro registry de shadcn (sobre `motion`, no
+  Base UI ni Radix) usado solo para animación; su paleta decorativa por
+  defecto (rosa/ámbar/azul/verde) está remapeada en `globals.css` al
+  acento naranja y los semánticos del proyecto — no agregar un componente
+  nuevo de ahí sin revisar que no traiga colores propios sin remapear.
+  Para todo lo demás (inputs, selects, diálogos…) usar `src/components/ui/`.
 - **Validación con Zod en cada boundary** (Server Action, route handler).
 - Commits en **Conventional Commits** (`feat:`, `fix:`, `chore:`, `test:`,
   `docs:`). Flujo de ramas: **GitFlow** (`main`, `develop`,
