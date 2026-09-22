@@ -1,4 +1,15 @@
-import { addDays, addMonths, differenceInCalendarDays, format, parseISO } from "date-fns";
+import {
+  addDays,
+  addMonths,
+  differenceInCalendarDays,
+  endOfDay,
+  endOfMonth,
+  format,
+  parseISO,
+  startOfDay,
+  startOfMonth,
+  startOfWeek,
+} from "date-fns";
 import { TZDate } from "@date-fns/tz";
 import { es } from "date-fns/locale";
 
@@ -49,4 +60,40 @@ export const dateTimeFmt = new Intl.DateTimeFormat("es-CO", {
 // de servidor y cliente → hydration mismatch). Ej: "28 feb 2026".
 export function formatDate(iso: string | Date): string {
   return format(typeof iso === "string" ? parseISO(iso) : iso, "d MMM yyyy", { locale: es });
+}
+
+// Compartido por los filtros de fecha de pagos, gastos, cierre de caja y reportes: todos
+// usan la misma forma {range, from?, to?} (paymentFiltersSchema/expenseFiltersSchema, etc.).
+export type DateRangeFilter = {
+  range: "today" | "week" | "month" | "custom" | "all";
+  from?: string;
+  to?: string;
+};
+
+// Rango [from, to] como instantes UTC calculados en la TZ del gimnasio.
+export function resolveDateRange(
+  filters: DateRangeFilter,
+  tz = DEFAULT_TZ,
+): { from?: Date; to?: Date } {
+  const now = new TZDate(Date.now(), tz);
+  switch (filters.range) {
+    case "today":
+      return { from: startOfDay(now), to: endOfDay(now) };
+    case "week":
+      return { from: startOfWeek(now, { weekStartsOn: 1 }), to: endOfDay(now) };
+    case "month":
+      return { from: startOfMonth(now), to: endOfMonth(now) };
+    case "custom": {
+      const from = filters.from ? startOfDay(new TZDate(parseISO(filters.from), tz)) : undefined;
+      const to = filters.to ? endOfDay(new TZDate(parseISO(filters.to), tz)) : undefined;
+      return { from, to };
+    }
+    default:
+      return {};
+  }
+}
+
+export function dayRange(dateISO: string, tz = DEFAULT_TZ) {
+  const d = new TZDate(parseISO(dateISO), tz);
+  return { from: startOfDay(d), to: endOfDay(d) };
 }

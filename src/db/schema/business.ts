@@ -203,6 +203,7 @@ export const expenses = pgTable(
     voidedAt: timestamp("voided_at", { withTimezone: true }),
     voidedBy: text("voided_by").references(() => user.id, { onDelete: "set null" }),
     voidReason: text("void_reason"),
+    notes: text("notes"),
   },
   (t) => [
     index("expenses_org_status_spent_idx").on(t.orgId, t.status, t.spentAt),
