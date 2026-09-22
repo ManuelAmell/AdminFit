@@ -2,7 +2,7 @@ import { and, asc, eq, gte, isNull, lte } from "drizzle-orm";
 import { members, plans, subscriptions } from "@/db/schema";
 import { addDaysISO, todayISO } from "@/lib/dates";
 import { withTenant } from "@/lib/tenant";
-import { getCompletedPaymentsTotal } from "@/modules/payments/queries";
+import { getCompletedPaymentsTotal, getTotalDebtCents } from "@/modules/payments/queries";
 import { paymentFiltersSchema } from "@/modules/payments/schema";
 import { getSubscriptionCounts } from "@/modules/subscriptions/queries";
 import { EXPIRING_SOON_DAYS } from "@/modules/subscriptions/rules";
@@ -10,14 +10,16 @@ import { EXPIRING_SOON_DAYS } from "@/modules/subscriptions/rules";
 export type DashboardKpis = {
   counts: Record<"active" | "expiring" | "expired" | "frozen" | "cancelled", number>;
   revenueCentsThisMonth: number;
+  debtCents: number;
 };
 
 export async function getDashboardKpis(orgId: string): Promise<DashboardKpis> {
-  const [counts, revenueCentsThisMonth] = await Promise.all([
+  const [counts, revenueCentsThisMonth, debtCents] = await Promise.all([
     getSubscriptionCounts(orgId),
     getCompletedPaymentsTotal(orgId, paymentFiltersSchema.parse({ range: "month" })),
+    getTotalDebtCents(orgId),
   ]);
-  return { counts, revenueCentsThisMonth };
+  return { counts, revenueCentsThisMonth, debtCents };
 }
 
 export type UpcomingExpiration = {

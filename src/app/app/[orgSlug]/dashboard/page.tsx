@@ -28,7 +28,7 @@ export default async function DashboardPage({ params }: PageProps<"/app/[orgSlug
   // Recepción no ve cifras agregadas del negocio (rediseño completo con gráficas en Fase 5.7).
   const canSeeFinance = can({ role, isSuperadmin }, { finance: ["read"] });
 
-  const { counts, revenueCentsThisMonth } = await getDashboardKpis(org.id);
+  const { counts, revenueCentsThisMonth, debtCents } = await getDashboardKpis(org.id);
 
   const isNewOrg = counts.active + counts.expired + counts.frozen + counts.cancelled === 0;
 
@@ -104,6 +104,11 @@ export default async function DashboardPage({ params }: PageProps<"/app/[orgSlug
             label: "Ingresos este mes",
             value: formatCOP(revenueCentsThisMonth),
             href: `${base}/payments`,
+          },
+          {
+            label: "Por cobrar",
+            value: formatCOP(debtCents),
+            href: `${base}/payments/debts`,
           },
         ]
       : []),

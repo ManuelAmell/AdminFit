@@ -46,9 +46,12 @@ function toLocalDatetimeValue(d: Date) {
 export function NewPaymentForm({
   orgSlug,
   initialMember,
+  initialSubscriptionId,
 }: {
   orgSlug: string;
   initialMember: PickedMember | null;
+  /** Preselecciona esta membresía al cargar el contexto de facturación (viene de Cartera). */
+  initialSubscriptionId?: string | null;
 }) {
   const router = useRouter();
   const [member, setMember] = useState<PickedMember | null>(initialMember);
@@ -81,19 +84,24 @@ export function NewPaymentForm({
       startBilling(async () => {
         const ctx = await getMemberBillingContextAction(orgSlug, m.id);
         setBilling(ctx);
-        const first = ctx?.subscriptions[0];
-        if (first) {
-          form.setValue("subscriptionId", first.id);
-          if (first.balance && first.balance.balanceCents > 0 && !form.getValues("amount")) {
+        // Si se llegó desde Cartera con una membresía puntual, se preselecciona esa en vez
+        // de la más reciente (el socio puede tener más de una activa/congelada).
+        const preselected = initialSubscriptionId
+          ? ctx?.subscriptions.find((s) => s.id === initialSubscriptionId)
+          : undefined;
+        const target = preselected ?? ctx?.subscriptions[0];
+        if (target) {
+          form.setValue("subscriptionId", target.id);
+          if (target.balance && target.balance.balanceCents > 0 && !form.getValues("amount")) {
             form.setValue(
               "amount",
-              formatPesosLive(String(Math.round(first.balance.balanceCents / 100))),
+              formatPesosLive(String(Math.round(target.balance.balanceCents / 100))),
             );
           }
         }
       });
     },
-    [orgSlug, form],
+    [orgSlug, form, initialSubscriptionId],
   );
 
   function handleMemberChange(m: PickedMember | null) {

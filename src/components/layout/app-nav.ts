@@ -14,7 +14,13 @@ import {
 // Component, y authorize.ts arrastra ./auth (Better Auth server + DB) al bundle del navegador.
 import { can, type OrgRole, type Permissions } from "@/lib/auth/permissions";
 
-export type NavItem = { label: string; href: string; icon: LucideIcon; requires?: Permissions };
+export type NavItem = {
+  label: string;
+  href: string;
+  icon: LucideIcon;
+  requires?: Permissions;
+  badge?: number;
+};
 
 const MAIN_ITEMS = (base: string): NavItem[] => [
   { label: "Dashboard", href: `${base}/dashboard`, icon: LayoutDashboard },
@@ -60,10 +66,16 @@ function visible(items: NavItem[], ctx: { role: OrgRole; isSuperadmin: boolean }
 export function orgNav(
   slug: string,
   ctx: { role: OrgRole; isSuperadmin: boolean },
+  extra: { debtorsCount?: number } = {},
 ): { main: NavItem[]; secondary: NavItem[] } {
   const base = `/app/${slug}`;
+  const main = visible(MAIN_ITEMS(base), ctx).map((item) =>
+    item.href === `${base}/payments/debts` && extra.debtorsCount
+      ? { ...item, badge: extra.debtorsCount }
+      : item,
+  );
   return {
-    main: visible(MAIN_ITEMS(base), ctx),
+    main,
     secondary: visible(SECONDARY_ITEMS(base), ctx),
   };
 }

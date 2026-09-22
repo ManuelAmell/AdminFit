@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gte, isNull, lte, or, sum } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, isNull, lte, ne, or, sql, sum } from "drizzle-orm";
 import {
   branches,
   members,
@@ -172,6 +172,119 @@ export async function getSubscriptionBalanceTx(tx: TenantDb, subscriptionId: str
 
 export async function getSubscriptionBalance(orgId: string, subscriptionId: string) {
   return withTenant(orgId, (tx) => getSubscriptionBalanceTx(tx, subscriptionId));
+}
+
+// Cartera (Fase 5.5): un socio debe cuando su plan cuesta más de lo que ha pagado.
+// Un solo query agregado (no N+1 por suscripción como getSubscriptionBalanceTx) — las
+// suscripciones canceladas no cuentan (no se les va a cobrar). Todos los roles con
+// `debt.read` ven la misma lista; solo el total agregado se gatea por finance.read en la
+// página (ver Fase 5 slice 0).
+export async function listDebtors(orgId: string) {
+  return withTenant(orgId, async (tx) => {
+    const paidBySub = tx
+      .select({
+        subscriptionId: payments.subscriptionId,
+        paid: sum(payments.amountCents).mapWith(Number).as("paid"),
+      })
+      .from(payments)
+      .where(and(eq(payments.status, "completed"), isNull(payments.deletedAt)))
+      .groupBy(payments.subscriptionId)
+      .as("paid_by_sub");
+
+    const balanceExpr = sql<number>`${subscriptions.priceCentsSnapshot} - coalesce(${paidBySub.paid}, 0)`;
+
+    const rows = await tx
+      .select({
+        subscriptionId: subscriptions.id,
+        memberId: members.id,
+        memberFirstName: members.firstName,
+        memberLastName: members.lastName,
+        memberDocument: members.documentNumber,
+        planName: plans.name,
+        status: subscriptions.status,
+        startDate: subscriptions.startDate,
+        endDate: subscriptions.endDate,
+        priceCents: subscriptions.priceCentsSnapshot,
+        paidCents: sql<number>`coalesce(${paidBySub.paid}, 0)`.mapWith(Number),
+        balanceCents: balanceExpr.mapWith(Number),
+      })
+      .from(subscriptions)
+      .innerJoin(members, eq(members.id, subscriptions.memberId))
+      .innerJoin(plans, eq(plans.id, subscriptions.planId))
+      .leftJoin(paidBySub, eq(paidBySub.subscriptionId, subscriptions.id))
+      .where(
+        and(
+          eq(subscriptions.orgId, orgId),
+          isNull(subscriptions.deletedAt),
+          isNull(members.deletedAt),
+          ne(subscriptions.status, "cancelled"),
+          sql`${balanceExpr} > 0`,
+        ),
+      )
+      .orderBy(desc(balanceExpr));
+
+    return rows;
+  });
+}
+
+// Solo el conteo, para el badge de "Cartera" en el sidebar (se pide en cada navegación
+// dentro de la org — layout.tsx — así que se evita traer filas o incluso sumar montos).
+export async function getDebtorsCount(orgId: string): Promise<number> {
+  return withTenant(orgId, async (tx) => {
+    const paidBySub = tx
+      .select({
+        subscriptionId: payments.subscriptionId,
+        paid: sum(payments.amountCents).mapWith(Number).as("paid"),
+      })
+      .from(payments)
+      .where(and(eq(payments.status, "completed"), isNull(payments.deletedAt)))
+      .groupBy(payments.subscriptionId)
+      .as("paid_by_sub");
+
+    const [row] = await tx
+      .select({ n: count() })
+      .from(subscriptions)
+      .leftJoin(paidBySub, eq(paidBySub.subscriptionId, subscriptions.id))
+      .where(
+        and(
+          eq(subscriptions.orgId, orgId),
+          isNull(subscriptions.deletedAt),
+          ne(subscriptions.status, "cancelled"),
+          sql`${subscriptions.priceCentsSnapshot} - coalesce(${paidBySub.paid}, 0) > 0`,
+        ),
+      );
+    return row?.n ?? 0;
+  });
+}
+
+// Solo la suma, para el KPI "Por cobrar" del dashboard (evita traer todas las filas).
+export async function getTotalDebtCents(orgId: string): Promise<number> {
+  return withTenant(orgId, async (tx) => {
+    const paidBySub = tx
+      .select({
+        subscriptionId: payments.subscriptionId,
+        paid: sum(payments.amountCents).mapWith(Number).as("paid"),
+      })
+      .from(payments)
+      .where(and(eq(payments.status, "completed"), isNull(payments.deletedAt)))
+      .groupBy(payments.subscriptionId)
+      .as("paid_by_sub");
+
+    const balanceExpr = sql<number>`${subscriptions.priceCentsSnapshot} - coalesce(${paidBySub.paid}, 0)`;
+
+    const [row] = await tx
+      .select({ total: sql<number>`coalesce(sum(greatest(${balanceExpr}, 0)), 0)`.mapWith(Number) })
+      .from(subscriptions)
+      .leftJoin(paidBySub, eq(paidBySub.subscriptionId, subscriptions.id))
+      .where(
+        and(
+          eq(subscriptions.orgId, orgId),
+          isNull(subscriptions.deletedAt),
+          ne(subscriptions.status, "cancelled"),
+        ),
+      );
+    return row?.total ?? 0;
+  });
 }
 
 // Membresía vigente (o la más reciente no cancelada) del socio con su saldo.
