@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { Camera, Trash2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -76,9 +76,9 @@ export function MemberForm({
   const { errors, isSubmitting } = form.formState;
   const base = `/app/${orgSlug}/members`;
 
-  const currentPhoto = form.watch("photoUrl");
-  const firstName = form.watch("firstName");
-  const lastName = form.watch("lastName");
+  const currentPhoto = useWatch({ control: form.control, name: "photoUrl" });
+  const firstName = useWatch({ control: form.control, name: "firstName" });
+  const lastName = useWatch({ control: form.control, name: "lastName" });
   const initials = `${firstName?.[0] ?? ""}${lastName?.[0] ?? ""}`.toUpperCase() || "SO";
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {

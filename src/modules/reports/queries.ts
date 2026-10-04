@@ -1,6 +1,6 @@
 import { TZDate } from "@date-fns/tz";
 import { endOfMonth, startOfMonth, subMonths } from "date-fns";
-import { and, asc, count, desc, eq, gte, isNull, lte, sql, sum } from "drizzle-orm";
+import { and, asc, count, eq, gte, isNull, lte, sum } from "drizzle-orm";
 import { members, payments, plans, subscriptions } from "@/db/schema";
 import { addDaysISO, DEFAULT_TZ, todayISO } from "@/lib/dates";
 import { withTenant } from "@/lib/tenant";

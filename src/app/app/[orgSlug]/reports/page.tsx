@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Banknote, BarChart3, CalendarCheck, CreditCard, Receipt, Users } from "lucide-react";
+import { Banknote, CalendarCheck, Receipt, Users } from "lucide-react";
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
