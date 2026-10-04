@@ -12,6 +12,8 @@ export const statements = {
   payment: ["create", "read", "void"],
   report: ["read", "export"],
   settings: ["read", "update"],
+  checkin: ["create", "read"],
+  gymClass: ["create", "read", "update", "cancel", "book"],
 } as const;
 
 export const ac = createAccessControl(statements);
@@ -28,6 +30,8 @@ export const owner = ac.newRole({
   payment: ["create", "read", "void"],
   report: ["read", "export"],
   settings: ["read", "update"],
+  checkin: ["create", "read"],
+  gymClass: ["create", "read", "update", "cancel", "book"],
 });
 
 export const admin = ac.newRole({
@@ -42,6 +46,8 @@ export const admin = ac.newRole({
   payment: ["create", "read", "void"],
   report: ["read", "export"],
   settings: ["read", "update"],
+  checkin: ["create", "read"],
+  gymClass: ["create", "read", "update", "cancel", "book"],
 });
 
 // Recepción: opera el día a día, no toca configuración ni anula pagos.
@@ -57,6 +63,8 @@ export const staff = ac.newRole({
   payment: ["create", "read"],
   report: ["read"],
   settings: ["read"],
+  checkin: ["create", "read"],
+  gymClass: ["create", "read", "update", "cancel", "book"],
 });
 
 export const roles = { owner, admin, staff } as const;
