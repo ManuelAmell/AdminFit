@@ -1,4 +1,5 @@
 import {
+  BarChart3,
   CreditCard,
   LayoutDashboard,
   ListChecks,
@@ -19,6 +20,7 @@ export function orgNav(slug: string): { main: NavItem[]; secondary: NavItem[] } 
       { label: "Membresías", href: `${base}/memberships`, icon: CreditCard },
       { label: "Pagos", href: `${base}/payments`, icon: Receipt },
       { label: "Planes", href: `${base}/plans`, icon: ListChecks },
+      { label: "Reportes", href: `${base}/reports`, icon: BarChart3 },
     ],
     secondary: [{ label: "Configuración", href: `${base}/settings`, icon: Settings }],
   };

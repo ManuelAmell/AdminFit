@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { MembershipBadge } from "@/components/members/membership-badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -83,6 +83,7 @@ export default async function MemberPage({ params }: PageProps<"/app/[orgSlug]/m
       <div className="flex flex-1 flex-col gap-6 p-4 md:p-6">
         <section className="flex flex-col gap-4 sm:flex-row sm:items-center">
           <Avatar className="size-16 text-lg">
+            <AvatarImage src={m.photoUrl ?? undefined} alt={fullName} />
             <AvatarFallback>{initials(m.firstName, m.lastName)}</AvatarFallback>
           </Avatar>
           <div className="flex flex-1 flex-col gap-1.5">

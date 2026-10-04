@@ -3,10 +3,12 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { Camera, Trash2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -50,6 +52,7 @@ export function MemberForm({
 }) {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const form = useForm<MemberInput>({
     resolver: zodResolver(memberInputSchema),
     defaultValues: {
@@ -65,12 +68,48 @@ export function MemberForm({
       emergencyContactPhone: "",
       notes: "",
       branchId: null,
+      photoUrl: null,
       ...defaultValues,
     },
     mode: "onBlur",
   });
   const { errors, isSubmitting } = form.formState;
   const base = `/app/${orgSlug}/members`;
+
+  const currentPhoto = form.watch("photoUrl");
+  const firstName = form.watch("firstName");
+  const lastName = form.watch("lastName");
+  const initials = `${firstName?.[0] ?? ""}${lastName?.[0] ?? ""}`.toUpperCase() || "SO";
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Por favor selecciona un archivo de imagen válido.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const size = Math.min(img.width, img.height);
+        const startX = (img.width - size) / 2;
+        const startY = (img.height - size) / 2;
+        const canvas = document.createElement("canvas");
+        canvas.width = 256;
+        canvas.height = 256;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(img, startX, startY, size, size, 0, 0, 256, 256);
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+          form.setValue("photoUrl", dataUrl, { shouldDirty: true });
+        }
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  }
 
   async function onSubmit(values: MemberInput) {
     setServerError(null);
@@ -114,6 +153,49 @@ export function MemberForm({
         </CardHeader>
         <CardContent>
           <FieldGroup>
+            {/* Foto del socio */}
+            <div className="flex flex-col gap-3 pb-2 sm:flex-row sm:items-center">
+              <Avatar className="size-20 shrink-0 border text-xl">
+                <AvatarImage src={currentPhoto ?? undefined} alt="Foto del socio" />
+                <AvatarFallback>{initials}</AvatarFallback>
+              </Avatar>
+              <div className="flex flex-col gap-1.5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleFileChange}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Camera className="size-4" />
+                    {currentPhoto ? "Cambiar foto" : "Subir foto"}
+                  </Button>
+                  {currentPhoto && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => form.setValue("photoUrl", null, { shouldDirty: true })}
+                    >
+                      <Trash2 className="size-4" />
+                      Quitar
+                    </Button>
+                  )}
+                </div>
+                <p className="text-muted-foreground text-xs">
+                  Foto frontal en JPG, PNG o WebP. Se ajustará automáticamente a formato cuadrado.
+                </p>
+              </div>
+            </div>
+
             <div className="grid gap-5 sm:grid-cols-[minmax(0,220px)_1fr]">
               <Field data-invalid={!!errors.documentType}>
                 <FieldLabel htmlFor="documentType">Tipo de documento</FieldLabel>

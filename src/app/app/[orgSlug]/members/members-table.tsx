@@ -9,6 +9,7 @@ import { DataTable } from "@/components/data-table/data-table";
 import { SearchInput } from "@/components/data-table/search-input";
 import { useTableSearchParams } from "@/components/data-table/use-table-search-params";
 import { MembershipBadge } from "@/components/members/membership-badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -49,19 +50,32 @@ export function MembersTable({
         id: "name",
         header: "Socio",
         enableSorting: true,
-        cell: ({ row }) => (
-          <div className="flex flex-col">
-            <Link
-              href={`${base}/${row.original.id}`}
-              className="font-medium underline-offset-4 hover:underline"
-            >
-              {row.original.firstName} {row.original.lastName}
-            </Link>
-            <span className="text-muted-foreground text-xs">
-              {row.original.phone ?? row.original.email ?? "—"}
-            </span>
-          </div>
-        ),
+        cell: ({ row }) => {
+          const initials =
+            `${row.original.firstName[0] ?? ""}${row.original.lastName[0] ?? ""}`.toUpperCase();
+          return (
+            <div className="flex items-center gap-3">
+              <Avatar className="size-8 shrink-0">
+                <AvatarImage
+                  src={row.original.photoUrl ?? undefined}
+                  alt={`${row.original.firstName} ${row.original.lastName}`}
+                />
+                <AvatarFallback className="text-xs">{initials}</AvatarFallback>
+              </Avatar>
+              <div className="flex flex-col">
+                <Link
+                  href={`${base}/${row.original.id}`}
+                  className="font-medium underline-offset-4 hover:underline"
+                >
+                  {row.original.firstName} {row.original.lastName}
+                </Link>
+                <span className="text-muted-foreground text-xs">
+                  {row.original.phone ?? row.original.email ?? "—"}
+                </span>
+              </div>
+            </div>
+          );
+        },
       },
       {
         id: "document",

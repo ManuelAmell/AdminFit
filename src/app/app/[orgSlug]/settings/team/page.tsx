@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { invitation, member } from "@/db/schema";
 import { PageHeader } from "@/components/layout/page-header";
 import { requireOrg } from "@/lib/auth/session";
+import { SettingsTabs } from "../settings-tabs";
 import { TeamView } from "./team-view";
 
 export const metadata: Metadata = { title: "Equipo — AdminFit" };
@@ -29,8 +30,9 @@ export default async function TeamPage({ params }: PageProps<"/app/[orgSlug]/set
 
   return (
     <>
-      <PageHeader title="Equipo" description="Personas con acceso a este gimnasio" />
+      <PageHeader title="Configuración" description={org.name} />
       <div className="flex flex-1 flex-col gap-6 p-4 md:p-6">
+        <SettingsTabs orgSlug={org.slug} active="team" />
         <TeamView
           orgId={org.id}
           currentUserId={userId}

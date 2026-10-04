@@ -37,6 +37,7 @@ export default async function EditMemberPage({
             emergencyContactPhone: m.emergencyContactPhone ?? "",
             notes: m.notes ?? "",
             branchId: m.branchId,
+            photoUrl: m.photoUrl,
           }}
         />
       </div>

@@ -57,6 +57,7 @@ export const memberInputSchema = z.object({
   emergencyContactPhone: phoneSchema,
   notes: optionalText(1000),
   branchId: z.uuid().nullable().optional(),
+  photoUrl: optionalText(500000),
 });
 
 export type MemberInput = z.input<typeof memberInputSchema>;
