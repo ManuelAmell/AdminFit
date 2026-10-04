@@ -22,6 +22,7 @@ import { dateTimeFmt, daysUntil, formatDate } from "@/lib/dates";
 import { DOCUMENT_TYPE_LABELS, GENDER_LABELS, MEMBER_STATUS_LABELS } from "@/lib/members/labels";
 import { formatCOP } from "@/lib/money";
 import { getMember } from "@/modules/members/queries";
+import { MemberQrDialog } from "@/components/members/member-qr-dialog";
 import { MemberActions } from "./member-actions";
 
 export const metadata: Metadata = { title: "Socio — AdminFit" };
@@ -70,14 +71,27 @@ export default async function MemberPage({ params }: PageProps<"/app/[orgSlug]/m
         title={fullName}
         description={`${m.documentType} ${m.documentNumber}`}
         actions={
-          <MemberActions
-            orgSlug={org.slug}
-            memberId={m.id}
-            name={fullName}
-            status={m.status}
-            canUpdate={canUpdate}
-            canDelete={canDelete}
-          />
+          <div className="flex items-center gap-2">
+            <MemberQrDialog
+              member={{
+                id: m.id,
+                firstName: m.firstName,
+                lastName: m.lastName,
+                documentType: m.documentType,
+                documentNumber: m.documentNumber,
+                photoUrl: m.photoUrl,
+              }}
+              orgName={org.name}
+            />
+            <MemberActions
+              orgSlug={org.slug}
+              memberId={m.id}
+              name={fullName}
+              status={m.status}
+              canUpdate={canUpdate}
+              canDelete={canDelete}
+            />
+          </div>
         }
       />
       <div className="flex flex-1 flex-col gap-6 p-4 md:p-6">
