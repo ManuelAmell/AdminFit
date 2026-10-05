@@ -24,7 +24,7 @@ Vitest + Playwright · pnpm.
 
 - Node.js ≥ 20.9
 - pnpm ≥ 10
-- Docker (para Postgres local)
+- Postgres 16 local: Docker, o los binarios de PostgreSQL instalados (`pnpm db:local`)
 
 ## Desarrollo
 
