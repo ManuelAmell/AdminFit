@@ -1,124 +1,90 @@
-# AdminFit — Pendientes
+# Pendientes
 
-Backlog vivo de features, deuda técnica y tareas de proceso. Arquitectura en
-[ARCHITECTURE.md](./ARCHITECTURE.md), diseño en [DESIGN.md](./DESIGN.md).
+Lista de lo que falta en AdminFit. Edítala directo en el repo.
 
-**Cómo usarlo:**
+**Reglas:**
 
-- Antes de empezar algo, búscalo aquí. Si no está, agrégalo antes de abrir la rama.
-- Al tomarlo, pásalo a **En curso** con tu nombre y la rama (`feature/<x>`
-  desde `develop`).
-- Al mergear a `develop`, pásalo a **Hecho** y actualiza el modelo de datos y
-  las migraciones en `ARCHITECTURE.md` si cambió el schema.
-- Prioridad: **P1** = bloquea vender o operar el producto · **P2** = siguiente
-  ola · **P3** = idea o mejora.
+1. Un ítem por línea.
+2. Al empezar algo, ponle tu nombre y la rama: `(@nombre, feature/x)`.
+3. Al mergearlo a `develop`, márcalo `[x]` y muévelo a **Hecho**.
 
-## 🚧 En curso
+Plantilla para copiar:
 
-| Feature                                                                                         | Quién         | Rama                          | Estado                                                                         |
-| ----------------------------------------------------------------------------------------------- | ------------- | ----------------------------- | ------------------------------------------------------------------------------ |
-| **Check-in**: tabla `checkins`, carnet QR por socio, kiosco de recepción; consume `visits_used` | Daniel Franco | `feature/phase1-enhancements` | En revisión. Falta rebase sobre `develop` y regenerar migraciones (ver abajo). |
-| **Clases**: `trainers`, `class_types`, `class_sessions`, `class_bookings` con aforo             | Daniel Franco | `feature/phase1-enhancements` | En revisión. Misma rama.                                                       |
-| **Sedes**: CRUD en Configuración → Sedes                                                        | Daniel Franco | `feature/phase1-enhancements` | En revisión. Debe usar `checkBranchLimit` (límite del plan SaaS).              |
-| **Foto del socio** (UI de `members.photo_url`)                                                  | Daniel Franco | `feature/phase1-enhancements` | **Decidir almacenamiento** antes de mergear (hoy guarda base64 en la DB).      |
+```
+- [ ] **Título corto**: qué hay que hacer y por qué. (@quién, feature/rama)
+```
 
-Lo que falta para mergear `feature/phase1-enhancements`:
+---
 
-- [ ] Rebase sobre `develop`. Borrar `0005_checkins`/`0006_classes` y
-      regenerar con `pnpm db:generate`, más una migración `--custom` con el RLS.
-- [ ] Revertir `tests/integration/setup.ts` (no debe tragarse los errores
-      de DB o de migración).
-- [ ] Resolver conflictos conservando lo de `develop`: reportes, tabs de
-      settings, menú y permisos.
-- [ ] Aforo con `SELECT … FOR UPDATE` sobre la sesión.
-- [ ] Check-in:
-  - [ ] Antiduplicado de escaneos seguidos.
-  - [ ] Incremento atómico de `visits_used`.
-  - [ ] Ignorar membresías con `startDate > hoy`.
-- [ ] Validar que `trainerId`/`branchId` pertenezcan a la org.
-- [ ] Recepción (`staff`) solo `gymClass: read, book`. Las páginas usan
-      `requirePermission`.
-- [ ] Tests de integración:
-  - [ ] Tablas nuevas en `tenant-isolation.test.ts`.
-  - [ ] Aforo concurrente.
-  - [ ] Plan por visitas.
+## En curso
 
-## 📋 Pendiente — producto
+- [ ] **Check-in con QR y kiosco**: registra ingresos y descuenta visitas en planes por visitas. (@Daniel, feature/phase1-enhancements)
+- [ ] **Clases y entrenadores**: horarios, reservas y control de aforo. (@Daniel, feature/phase1-enhancements)
+- [ ] **Sedes**: crear y editar sedes en Configuración. Debe respetar el límite del plan (`checkBranchLimit`). (@Daniel, feature/phase1-enhancements)
+- [ ] **Foto del socio**: falta decidir dónde se guardan las fotos; hoy van en base64 dentro de la DB. (@Daniel, feature/phase1-enhancements)
 
-### P1
+### Qué falta para mergear `feature/phase1-enhancements`
 
-- **Hacer cumplir el plan del SaaS.** `tenant_subscriptions` (trial, active,
-  expired) se asigna desde `/admin`, pero hoy **no restringe nada**:
-  - Un gym con trial vencido sigue operando. Falta un aviso de N días antes
-    y bloqueo o solo lectura al vencer.
-  - De los límites solo se aplica `checkMemberLimit` (al crear socios).
-    `checkBranchLimit` y `checkStaffLimit` existen en
-    `src/modules/platform/limits.ts` pero nadie los llama (crear sede,
-    invitar a alguien del equipo).
-- **Configuración general del gym.** `settings/general` solo tiene el precio
-  del pase del día. Faltan NIT, dirección, teléfono, logo, `grace_days` y
-  `receipt_prefix`, que ya existen en `org_settings` y salen en los recibos.
-- **Página 403 amable.** Una página protegida con `requirePermission` lanza
-  `ForbiddenError` y el usuario ve el error genérico de Next ("This page
-  couldn't load"). Falta un `forbidden()`/`notFound()` común, y que el menú
-  ya no muestre esos enlaces.
+- [ ] Rebase sobre `develop` y regenerar las migraciones con `pnpm db:generate` (borrar `0005_checkins` y `0006_classes`).
+- [ ] Migración aparte con el RLS de las tablas nuevas (`pnpm db:generate --custom --name rls_checkins_classes`).
+- [ ] Revertir `tests/integration/setup.ts`: no debe esconder errores de DB.
+- [ ] Resolver conflictos conservando lo de `develop` (reportes, tabs de settings, menú, permisos).
+- [ ] Aforo: bloquear la sesión (`FOR UPDATE`) antes de contar las reservas.
+- [ ] Check-in: que un doble escaneo no descuente dos visitas.
+- [ ] Check-in: no usar membresías que todavía no empiezan.
+- [ ] Validar que el entrenador y la sede sean del mismo gimnasio.
+- [ ] Recepción solo puede ver y reservar clases, no configurarlas.
+- [ ] Tests: tablas nuevas en `tenant-isolation.test.ts`, aforo concurrente y plan por visitas.
 
-### P2
+---
 
-- **Portal del socio (PWA):** rol `member`, ver su plan y vencimiento,
-  carnet QR y reservar clases (depende de check-in y clases).
-- **Pasarela de pago:** Wompi o Mercado Pago, con webhooks idempotentes, para
-  que el socio pague o renueve en línea. Para el SaaS, que cada gym pague su
-  plan sin que el superadmin lo asigne a mano.
-- **Recordatorios de vencimiento:** email (Resend) o WhatsApp antes del
-  vencimiento y durante la gracia. Hoy no hay email transaccional, y las
-  invitaciones se comparten copiando el enlace.
-- **Reportes de asistencia** (requiere check-in): ingresos por día y hora,
-  socios inactivos y ocupación de clases.
+## Por hacer
 
-### P3
+### Prioridad alta
 
-- Inventario de productos para la venta rápida (hoy "producto" es solo un
-  concepto con monto libre).
-- Multi-moneda / multi-país (hoy todo es COP y `America/Bogota`).
+- [ ] **Bloquear gym con plan del SaaS vencido**: hoy un trial vencido sigue operando. Avisar unos días antes y pasar a solo lectura al vencer.
+- [ ] **Límite de sedes y de equipo del plan**: `checkBranchLimit` y `checkStaffLimit` existen pero no se usan.
+- [ ] **Configuración general del gym**: NIT, dirección, teléfono, logo, días de gracia y prefijo del recibo.
+- [ ] **Página "sin permiso"**: hoy, entrar sin permiso muestra el error genérico "This page couldn't load".
 
-## 🐞 Deuda técnica
+### Siguiente
 
-- **Dashboard:** una sola tanda de queries por vista, sin `<Suspense>` por
-  widget. Reconsiderar si se siente lento con datos reales.
-- **Fin de línea:** no hay `.gitattributes`. En Windows, Prettier marca unos
-  14 archivos por CRLF (`pnpm format:check` falla). Agregar
-  `* text=auto eol=lf` y normalizar en un commit aparte.
-- **Typecheck en clon nuevo:** `PageProps`/`LayoutProps` salen de
-  `next typegen`. Sumarlo a `typecheck` o a un `postinstall`.
+- [ ] **Portal del socio (app/PWA)**: ver su plan, el vencimiento, el carnet QR y reservar clases.
+- [ ] **Pagos en línea**: Wompi o Mercado Pago, para socios y para que cada gym pague su plan del SaaS.
+- [ ] **Recordatorios de vencimiento** por email o WhatsApp.
+- [ ] **Reportes de asistencia**: horas pico, socios inactivos, ocupación de clases.
 
-## ⚙️ Proceso e infraestructura
+### Ideas
 
-- **CI en GitHub Actions** (hoy no hay `.github/`). Los PR no corren nada:
-  - Correr `pnpm verify` con Postgres de servicio.
-  - Revisar que `pnpm db:generate` no deje cambios.
-  - Correr Playwright.
-- **Protección de ramas:** `main` y `develop` solo por PR, con CI en verde y
-  al menos una revisión.
-- **Deploy:** definir dónde corre producción (self-host o Vercel + Postgres
-  gestionado). Hay que programar el cron `/api/cron/expire` y los backups de la DB.
+- [ ] Inventario de productos para la venta rápida.
+- [ ] Soporte para otros países y monedas.
 
-## ✅ Hecho
+---
 
-- **v1:** auth y multi-tenancy con RLS, socios (CRUD, import CSV), planes y
-  membresías (renovar, congelar, cancelar), pagos con recibo imprimible y
-  anulación, dashboard con KPIs, superadmin (suspender tenant, impersonar).
-- **Fase 5, "Las cuentas del gym":**
-  - Matriz de permisos por rol.
-  - Smooth UI + `motion`.
-  - Venta rápida sin socio.
-  - Gastos por sede y categoría.
-  - Cartera.
-  - Cierre de caja con arqueo ciego.
-  - Dashboards "Negocio" / "Mi turno".
-  - Reportes del mes + CSV.
-- **Cobro manual del SaaS:** planes de plataforma, datos bancarios y Nequi,
-  asignación de plan por gym y "Mi plan" para el owner.
-- **Centro de caja:** KPIs, calendario de cierres, desempeño por cajero y
-  CSV. Incluye un fix: se puede volver a cerrar después de reabrir
-  (migración `0009`).
+## Deuda técnica
+
+- [ ] Agregar `.gitattributes` (`* text=auto eol=lf`): en Windows, Prettier marca unos 14 archivos por saltos de línea CRLF.
+- [ ] Que `pnpm typecheck` funcione en un clon nuevo sin correr antes `pnpm exec next typegen`.
+- [ ] Dashboard: cargar cada gráfica por separado (`<Suspense>`) si se siente lento con datos reales.
+
+## Proceso
+
+- [ ] **CI en GitHub Actions**: `pnpm verify`, revisar que `pnpm db:generate` no deje cambios, y e2e en cada PR.
+- [ ] **Proteger `main` y `develop`**: solo por PR, con CI en verde y una revisión.
+- [ ] **Deploy**: elegir dónde corre producción, programar el cron `/api/cron/expire` y los backups.
+
+---
+
+## Hecho
+
+- [x] v1: auth y multi-gimnasio, socios (incluye importar CSV), planes y membresías, pagos y recibos, dashboard, superadmin.
+- [x] Permisos por rol (recepción no ve cifras sensibles).
+- [x] Venta rápida (pase del día, productos, otros cobros).
+- [x] Gastos por sede y categoría.
+- [x] Cartera: socios con saldo pendiente.
+- [x] Cierre de caja con arqueo ciego.
+- [x] Dashboards "Negocio" y "Mi turno" con gráficas.
+- [x] Reportes del mes con exportación CSV.
+- [x] Cobro manual del SaaS: planes, datos bancarios y plan por gym.
+- [x] Centro de caja: KPIs, calendario de cierres, desempeño por cajero.
+- [x] Fix: se puede volver a cerrar la caja después de reabrirla.
