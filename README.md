@@ -1,13 +1,24 @@
 # AdminFit
 
-Plataforma multi-tenant para administrar socios, membresías y pagos de
-gimnasios en Colombia. Ver [ARCHITECTURE.md](./ARCHITECTURE.md) para el
-modelo de datos, la arquitectura multi-tenant y el roadmap completo.
+Plataforma multi-tenant para administrar gimnasios en Colombia: socios,
+membresías, pagos y recibos, venta rápida, cartera, gastos, cierre y
+centro de caja, reportes, y el cobro del SaaS a cada gimnasio.
+
+| Documento                            | Para qué                                                                              |
+| ------------------------------------ | ------------------------------------------------------------------------------------- |
+| [ARCHITECTURE.md](./ARCHITECTURE.md) | Stack, multi-tenancy/RLS, modelo de datos, migraciones, GitFlow y **checklist de PR** |
+| [DESIGN.md](./DESIGN.md)             | Sistema de diseño, componentes (Base UI, no Radix), animación, gráficas               |
+| [PENDIENTES.md](./PENDIENTES.md)     | Backlog: en curso, pendientes con prioridad, deuda técnica                            |
+| [AGENTS.md](./AGENTS.md)             | Reglas duras de código (también las lee la IA: Claude, Codex, Cursor…)                |
+
+> **Si trabajas con un asistente de IA**, dale esos cuatro archivos como
+> contexto antes de pedirle código.
 
 ## Stack
 
-Next.js 16 (App Router) · TypeScript · Tailwind v4 · shadcn/ui ·
-PostgreSQL · Drizzle ORM · Better Auth · pnpm.
+Next.js 16 (App Router, Turbopack) · TypeScript · Tailwind v4 · shadcn/ui
+sobre Base UI · PostgreSQL 16 + Drizzle ORM (RLS) · Better Auth · Zod ·
+Vitest + Playwright · pnpm.
 
 ## Requisitos
 
@@ -29,6 +40,8 @@ pnpm db:local init              # cluster en ./.pgdata, puerto 5433, rol `adminf
 pnpm db:local start|stop|status
 
 pnpm db:migrate               # aplica ./drizzle (incluye policies RLS)
+pnpm db:seed                  # opcional: datos de prueba
+pnpm exec next typegen        # tipos PageProps/LayoutProps (necesarios para typecheck en un clon nuevo)
 pnpm dev                      # http://localhost:3000
 ```
 
@@ -46,16 +59,19 @@ UPDATE "user" SET role = 'superadmin' WHERE email = 'tu@correo.com';
 
 ## Scripts
 
-| Comando                                                | Qué hace                                                      |
-| ------------------------------------------------------ | ------------------------------------------------------------- |
-| `pnpm dev`                                             | Servidor de desarrollo (Turbopack)                            |
-| `pnpm build` / `pnpm start`                            | Build y arranque de producción                                |
-| `pnpm lint` / `pnpm lint:fix`                          | ESLint                                                        |
-| `pnpm format` / `pnpm format:check`                    | Prettier                                                      |
-| `pnpm typecheck`                                       | `tsc --noEmit`                                                |
-| `pnpm test` / `pnpm test:watch` / `pnpm test:coverage` | Vitest (unit/integration)                                     |
-| `pnpm test:e2e`                                        | Playwright                                                    |
-| `pnpm verify`                                          | lint + typecheck + test — correr antes de cada commit de fase |
+| Comando                                                | Qué hace                                                                                       |
+| ------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
+| `pnpm dev`                                             | Servidor de desarrollo (Turbopack)                                                             |
+| `pnpm build` / `pnpm start`                            | Build y arranque de producción                                                                 |
+| `pnpm lint` / `pnpm lint:fix`                          | ESLint                                                                                         |
+| `pnpm format` / `pnpm format:check`                    | Prettier                                                                                       |
+| `pnpm typecheck`                                       | `tsc --noEmit`                                                                                 |
+| `pnpm test` / `pnpm test:watch` / `pnpm test:coverage` | Vitest (unit/integration)                                                                      |
+| `pnpm test:e2e`                                        | Playwright                                                                                     |
+| `pnpm verify`                                          | lint + typecheck + test — correr antes de cada PR                                              |
+| `pnpm db:generate`                                     | Genera migración + snapshot desde `src/db/schema` (nunca escribir `drizzle/NNNN_*.sql` a mano) |
+| `pnpm db:migrate` / `pnpm db:seed` / `pnpm db:studio`  | Aplicar migraciones / datos de prueba / Drizzle Studio                                         |
+| `pnpm db:local <init\|start\|stop\|status>`            | Postgres local sin Docker (puerto 5433)                                                        |
 
 ## Flujo de ramas: GitFlow
 
@@ -63,8 +79,10 @@ UPDATE "user" SET role = 'superadmin' WHERE email = 'tu@correo.com';
   `hotfix/*`, tag por versión (`v0.1.0`, ...).
 - **`develop`** — rama de integración, base de toda `feature/*`.
 - **`feature/<nombre>`** — una por fase/módulo (ej.
-  `feature/auth-multitenancy`, `feature/members-plans`). Merge a
-  `develop` al terminar.
+  `feature/centro-caja`). **Siempre sale de `develop` actualizado y vuelve
+  a `develop` por PR — nunca se ramifica ni se abre PR desde/hacia `main`.**
+  Antes del PR: `git fetch && git rebase origin/develop`, y repasar el
+  [checklist](./ARCHITECTURE.md#checklist-antes-de-abrir-pr).
 - **`release/<version>`** — se corta de `develop` cuando una fase está
   lista, solo fixes menores, luego merge a `main` y `develop` + tag.
 - **`hotfix/<nombre>`** — parches urgentes desde `main`, merge a `main` y
@@ -92,5 +110,6 @@ y define `CRON_SECRET` en las variables del proyecto.
 ## Tests
 
 - `tests/unit/` — Vitest (jsdom).
-- `tests/integration/` — Vitest contra la DB real de `DATABASE_URL` (aplica migraciones al inicio).
+- `tests/integration/` — Vitest contra la DB real de `DATABASE_URL` (aplica migraciones al inicio y
+  **falla** si no hay DB o una migración falla — no silenciarlo).
 - `tests/e2e/` — Playwright (levanta `pnpm dev` automáticamente; requiere DB).

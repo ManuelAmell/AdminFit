@@ -2,7 +2,7 @@
 
 Guía visual y de componentes. Arquitectura, modelo de datos y reglas de
 ramas en [ARCHITECTURE.md](./ARCHITECTURE.md); convenciones de código en
-[AGENTS.md](./AGENTS.md).
+[AGENTS.md](./AGENTS.md); backlog en [PENDIENTES.md](./PENDIENTES.md).
 
 ## Antes de empezar (personas y asistentes de IA)
 

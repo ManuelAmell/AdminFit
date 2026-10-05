@@ -3,13 +3,14 @@
 SaaS multi-tenant para gestión de gimnasios en Colombia: socios,
 membresías, pagos manuales, caja, gastos, reportes y cobro del SaaS a
 cada gimnasio. Diseño visual y de UI en [DESIGN.md](./DESIGN.md);
-convenciones de código en [AGENTS.md](./AGENTS.md).
+convenciones de código en [AGENTS.md](./AGENTS.md); backlog en
+[PENDIENTES.md](./PENDIENTES.md).
 
 > **¿Vas a contribuir (tú o tu IA)?** Lee primero
 > [Flujo de trabajo](#flujo-de-trabajo-gitflow) y
 > [Checklist antes de abrir PR](#checklist-antes-de-abrir-pr). Si usas un
-> asistente de IA, dale este archivo, `DESIGN.md` y `AGENTS.md` como
-> contexto antes de pedirle código.
+> asistente de IA, dale este archivo, `DESIGN.md`, `AGENTS.md` y
+> `PENDIENTES.md` como contexto antes de pedirle código.
 
 ## Stack
 
@@ -61,7 +62,7 @@ Detalle de comandos en [README.md](./README.md#flujo-de-ramas-gitflow).
 3. Cada tabla de negocio nueva: `...tenantColumns`, FK compuesta
    `(org_id, x_id)` hacia otras tablas del tenant, RLS, y agregarla a
    `tests/integration/tenant-isolation.test.ts`.
-4. Revisa que el módulo no exista ya (`src/modules/`, `src/app/app/[orgSlug]/`)
+4. Revisa en `PENDIENTES.md` que nadie lo tenga en curso y que el módulo no exista ya (`src/modules/`, `src/app/app/[orgSlug]/`)
    antes de crearlo; extiende en vez de duplicar.
 5. Permisos nuevos en `src/lib/auth/permissions.ts` respetando la matriz
    (recepción/`staff` no toca configuración ni ve cifras sensibles). Las
@@ -213,34 +214,17 @@ nivel de DB, que una org referencie el socio o el plan de otra.
 El siguiente número libre lo decide `pnpm db:generate` sobre `develop`
 actualizado, nunca a mano (ver checklist).
 
-## Roadmap
+## Roadmap y pendientes
 
-- **v1** (`main`): auth y multi-tenancy, socios, planes y membresías,
-  pagos, dashboard/reportes, superadmin ✅
-- **Fase 5, "Las cuentas del gym"**: permisos por rol, Smooth UI, venta
-  rápida, gastos, cartera, cierre de caja, dashboards con gráficas,
-  reportes + CSV ✅. Cobro manual del SaaS por tenant ✅. Centro de caja
-  (KPIs, calendario de cierres, desempeño por cajero, CSV) ✅
-- **Siguiente**:
-  1. **Check-in**: tabla `checkins`, QR por socio, kiosco; consume
-     `visits_used`. 🚧 Hay una propuesta en `feature/phase1-enhancements`
-     pendiente de rebase sobre `develop`.
-  2. **Clases y entrenadores**: `trainers`, `class_types`,
-     `class_sessions`, `class_bookings` con control de aforo. 🚧 Misma rama.
-  3. Foto del socio (decidir almacenamiento antes de guardar en la DB).
-  4. Portal del socio (PWA): rol `member`, ver plan, reservar.
-  5. Pasarela de pago (Wompi/Mercado Pago, webhooks).
-  6. Comunicaciones: recordatorios de vencimiento (Resend).
+El estado de cada feature (hecho, en curso, pendiente con prioridad), la
+deuda técnica y las tareas de proceso viven en
+[PENDIENTES.md](./PENDIENTES.md). Actualízalo al empezar y al mergear
+cualquier cosa.
 
-Deuda técnica conocida:
-
-- Las páginas protegidas con `requirePermission` lanzan `ForbiddenError`,
-  y el usuario ve el error genérico de Next ("This page couldn't load") en
-  vez de un 403 o 404 amable. Conviene un `forbidden()`/`notFound()` común.
-- No hay UI de configuración general completa (nit, dirección, logo,
-  grace_days, receipt_prefix).
-- Las gráficas del dashboard usan una sola tanda de queries por vista, sin
-  `<Suspense>` por widget. Reconsiderar si se siente lento con datos reales.
+Resumen: v1 y Fase 5 ✅, cobro manual del SaaS ✅, centro de caja ✅.
+Check-in, clases, sedes y foto del socio 🚧 en
+`feature/phase1-enhancements`. Lo siguiente es hacer cumplir el plan del
+SaaS, la configuración general y el portal del socio.
 
 ## Verificación
 

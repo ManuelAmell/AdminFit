@@ -12,7 +12,9 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 SaaS multi-tenant de gestión de gimnasios (Colombia). Arquitectura,
 modelo de datos, GitFlow y checklist de PR en `ARCHITECTURE.md`; sistema
-de diseño y componentes UI en `DESIGN.md`. Léelos antes de escribir código.
+de diseño y componentes UI en `DESIGN.md`; backlog (qué está en curso,
+qué falta, deuda técnica) en `PENDIENTES.md`. Léelos antes de escribir
+código, y actualiza `PENDIENTES.md` al empezar y al terminar una feature.
 
 ## Stack
 
