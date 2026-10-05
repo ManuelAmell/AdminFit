@@ -231,12 +231,15 @@ export const cashClosures = pgTable(
   (t) => [
     // `branch_id` es nullable (una org sin sedes cierra "sin sede"); coalesce con un uuid
     // fijo para que el índice único cuente ese caso como una sola sede, ya que Postgres
-    // trata cada NULL como distinto en un índice único normal.
-    uniqueIndex("cash_closures_org_branch_date_uidx").on(
-      t.orgId,
-      sql`coalesce(${t.branchId}, '00000000-0000-0000-0000-000000000000'::uuid)`,
-      t.businessDate,
-    ),
+    // trata cada NULL como distinto en un índice único normal. Parcial sobre las filas
+    // vivas: reabrir es soft delete, y después se tiene que poder volver a cerrar.
+    uniqueIndex("cash_closures_org_branch_date_uidx")
+      .on(
+        t.orgId,
+        sql`coalesce(${t.branchId}, '00000000-0000-0000-0000-000000000000'::uuid)`,
+        t.businessDate,
+      )
+      .where(sql`${t.deletedAt} is null`),
   ],
 );
 
