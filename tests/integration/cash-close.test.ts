@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { db } from "@/db";
 import { cashClosures, expenses, organization } from "@/db/schema";
+import { todayISO } from "@/lib/dates";
 import { withTenant } from "@/lib/tenant";
 import { computeExpectedCashCents, getCashClosure } from "@/modules/cash/queries";
 import { registerPaymentCore } from "@/modules/payments/core";
@@ -9,7 +10,8 @@ import { registerPaymentCore } from "@/modules/payments/core";
 // Fase 5.6: cierre de caja. Los pagos/gastos se registran "ahora" (paidAt/spentAt = now),
 // así que se calcula sobre el día de hoy en vez de una fecha fija.
 const run = Date.now().toString(36);
-const today = new Date().toISOString().slice(0, 10);
+// "Hoy" en TZ Bogotá, igual que dayRange(): en UTC la fecha cambia a las 7pm locales.
+const today = todayISO();
 
 describe("cierre de caja: esperado = base + efectivo cobrado - gastos en efectivo", () => {
   const org = { id: `cash-${run}`, name: "Cash Org", slug: `cash-${run}`, createdAt: new Date() };
@@ -40,15 +42,13 @@ describe("cierre de caja: esperado = base + efectivo cobrado - gastos en efectiv
     );
     // 1 gasto en efectivo, 1 por transferencia (no debe restar).
     await withTenant(org.id, (tx) =>
-      tx
-        .insert(expenses)
-        .values({
-          orgId: org.id,
-          category: "supplies",
-          description: "Aseo",
-          amountCents: 5_000_00,
-          method: "cash",
-        }),
+      tx.insert(expenses).values({
+        orgId: org.id,
+        category: "supplies",
+        description: "Aseo",
+        amountCents: 5_000_00,
+        method: "cash",
+      }),
     );
     await withTenant(org.id, (tx) =>
       tx.insert(expenses).values({

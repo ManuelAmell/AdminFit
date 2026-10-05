@@ -62,9 +62,9 @@ test.describe.serial("registro, equipo e invitación", () => {
     await staffPage.getByRole("button", { name: "Aceptar invitación" }).click();
     await expect(staffPage).toHaveURL(new RegExp(`/app/${gym.slug}/dashboard$`));
 
-    // Recepción no ve el formulario de invitación.
+    // Recepción no tiene `settings` (matriz de Fase 5): ni ve el equipo ni puede invitar.
     await staffPage.goto(`/app/${gym.slug}/settings/team`);
-    await expect(staffPage.getByRole("heading", { name: "Miembros" })).toBeVisible();
+    await expect(staffPage.getByRole("heading", { name: "Miembros" })).toHaveCount(0);
     await expect(staffPage.getByRole("button", { name: "Crear invitación" })).toHaveCount(0);
     await ctx.close();
   });

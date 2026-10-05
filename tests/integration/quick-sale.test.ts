@@ -1,7 +1,8 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { db } from "@/db";
-import { members, organization, payments } from "@/db/schema";
+import { members, organization, payments, user } from "@/db/schema";
+import { todayISO } from "@/lib/dates";
 import { withTenant } from "@/lib/tenant";
 import { registerPaymentCore } from "@/modules/payments/core";
 import { getCashClose, listPayments } from "@/modules/payments/queries";
@@ -18,6 +19,8 @@ let memberId: string;
 describe("venta rápida: pagos sin socio", () => {
   beforeAll(async () => {
     await db.insert(organization).values(org);
+    // receivedBy es FK a user: el cajero tiene que existir.
+    await db.insert(user).values({ id: cashier, name: "Cajero QS", email: `${cashier}@test.co` });
     memberId = await withTenant(org.id, async (tx) => {
       const [m] = await tx
         .insert(members)
@@ -29,6 +32,7 @@ describe("venta rápida: pagos sin socio", () => {
 
   afterAll(async () => {
     await db.delete(organization).where(eq(organization.id, org.id));
+    await db.delete(user).where(eq(user.id, cashier));
   });
 
   it("acepta un pase del día sin socio, con nombre de quien paga", async () => {
@@ -110,7 +114,7 @@ describe("venta rápida: pagos sin socio", () => {
     expect(dayPassRow?.payerName).toBe("Visitante Juan");
     expect(dayPassRow?.memberFirstName).toBeNull();
 
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayISO(); // TZ Bogotá, como getCashClose
     const close = await getCashClose(org.id, today);
     expect(close.completed.some((p) => p.payerName === "Visitante Juan")).toBe(true);
   });
