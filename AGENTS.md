@@ -11,7 +11,8 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 # AdminFit — Convenciones del proyecto
 
 SaaS multi-tenant de gestión de gimnasios (Colombia). Arquitectura,
-modelo de datos y roadmap completos en `ARCHITECTURE.md`.
+modelo de datos, GitFlow y checklist de PR en `ARCHITECTURE.md`; sistema
+de diseño y componentes UI en `DESIGN.md`. Léelos antes de escribir código.
 
 ## Stack
 
@@ -29,7 +30,7 @@ Next.js 16 (App Router, Turbopack) + TypeScript + Tailwind v4 + shadcn/ui
   `searchParams` son promesas — siempre `await`.
 - **Multi-tenancy vía `withTenant(orgId, fn)`.** Ninguna query de negocio
   se ejecuta fuera de este helper (fija `org_id` para RLS). Ver
-  `src/lib/tenant.ts` cuando exista (Fase 1).
+  `src/lib/tenant.ts`.
 - **Dinero en enteros (centavos).** Nunca `float`/`number` decimal para
   montos. Formatear con `Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' })`.
 - **Fechas con `date-fns` + TZ `America/Bogota`** para cálculos de
@@ -48,7 +49,9 @@ Next.js 16 (App Router, Turbopack) + TypeScript + Tailwind v4 + shadcn/ui
 - **Validación con Zod en cada boundary** (Server Action, route handler).
 - Commits en **Conventional Commits** (`feat:`, `fix:`, `chore:`, `test:`,
   `docs:`). Flujo de ramas: **GitFlow** (`main`, `develop`,
-  `feature/*`, `release/*`, `hotfix/*|`) — detalle en `README.md`.
+  `feature/*`, `release/*`, `hotfix/*`): toda `feature/*` sale de
+  `develop` actualizado y vuelve a `develop` por PR, nunca a `main` —
+  detalle en `README.md`.
 
 ## Comandos
 
@@ -56,16 +59,21 @@ Next.js 16 (App Router, Turbopack) + TypeScript + Tailwind v4 + shadcn/ui
 pnpm dev            # next dev (Turbopack)
 pnpm verify          # lint + typecheck + test — correr antes de cada commit de fase
 pnpm test:e2e         # Playwright (requiere pnpm dev o lo levanta el propio config)
-docker compose up -d postgres   # DB local (Fase 1+)
+docker compose up -d postgres   # DB local (o: pnpm db:local init|start)
+pnpm db:generate     # genera migración + snapshot desde src/db/schema — nunca escribir NNNN_*.sql a mano
 ```
 
 ## Base compartida (Fase 2+)
 
 - Schema de negocio en `src/db/schema/business.ts` (members, plans,
-  subscriptions, payments, audit_log) — migraciones `0002`/`0003` ya
-  aplicadas. **No crear migraciones nuevas sin coordinar**: si un módulo
-  necesita cambiar el schema, anotarlo en el reporte final en vez de generar
-  `0004_*`.
+  subscriptions, payments, expenses, cash_closures, audit_log) y de
+  plataforma en `src/db/schema/platform.ts`. **No crear migraciones sin
+  coordinar**: si un módulo necesita cambiar el schema, se genera con
+  `pnpm db:generate` sobre `develop` actualizado (+ `NNNN_rls_<modulo>.sql`
+  para tablas nuevas) y se avisa en el PR — ver checklist en
+  `ARCHITECTURE.md`.
+- No debilitar tests para que pasen (p. ej. `tests/integration/setup.ts`
+  debe fallar si no hay DB o falla una migración).
 - Helpers: `src/lib/money.ts` (centavos/COP), `src/lib/dates.ts`
   (`computeEndDate`, `todayISO`, TZ Bogotá), `src/modules/audit`
   (`audit(tx, …)` dentro de `withTenant`), `src/lib/auth/authorize.ts`
