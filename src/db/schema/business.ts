@@ -1,5 +1,7 @@
+import { sql } from "drizzle-orm";
 import {
   boolean,
+  check,
   date,
   foreignKey,
   index,
@@ -29,6 +31,23 @@ export const subscriptionStatusEnum = pgEnum("subscription_status", [
 ]);
 export const paymentMethodEnum = pgEnum("payment_method", ["cash", "transfer", "card", "other"]);
 export const paymentStatusEnum = pgEnum("payment_status", ["completed", "voided"]);
+// membership: pago ligado a una suscripción (member_id obligatorio, como hoy).
+// day_pass/product/other: venta rápida sin socio — member_id null, payer_name obligatorio.
+export const paymentConceptEnum = pgEnum("payment_concept", [
+  "membership",
+  "day_pass",
+  "product",
+  "other",
+]);
+export const expenseCategoryEnum = pgEnum("expense_category", [
+  "rent",
+  "utilities",
+  "payroll",
+  "equipment",
+  "maintenance",
+  "supplies",
+  "other",
+]);
 
 // Socios del gimnasio ("gymMember" en permisos; "member" es el usuario del equipo en Better Auth).
 export const members = pgTable(
@@ -124,13 +143,15 @@ export const payments = pgTable(
   "payments",
   {
     ...tenantColumns,
-    memberId: uuid("member_id")
-      .notNull()
-      .references(() => members.id, { onDelete: "restrict" }),
+    // Nullable desde 0005: una venta rápida (pase del día, producto) no tiene socio.
+    memberId: uuid("member_id").references(() => members.id, { onDelete: "restrict" }),
     subscriptionId: uuid("subscription_id").references(() => subscriptions.id, {
       onDelete: "set null",
     }),
     branchId: uuid("branch_id").references(() => branches.id, { onDelete: "set null" }),
+    concept: paymentConceptEnum("concept").default("membership").notNull(),
+    // Nombre de quien paga cuando no es socio (member_id null). Ver checks abajo.
+    payerName: text("payer_name"),
     amountCents: integer("amount_cents").notNull(),
     method: paymentMethodEnum("method").default("cash").notNull(),
     reference: text("reference"),
@@ -154,6 +175,71 @@ export const payments = pgTable(
       columns: [t.orgId, t.memberId],
       foreignColumns: [members.orgId, members.id],
     }).onDelete("restrict"),
+    check(
+      "payments_member_or_payer_ck",
+      sql`${t.memberId} is not null or ${t.payerName} is not null`,
+    ),
+    check(
+      "payments_membership_requires_member_ck",
+      sql`${t.concept} <> 'membership' or ${t.memberId} is not null`,
+    ),
+  ],
+);
+
+// Gastos de caja: arriendo, servicios, nómina, etc. Reusa payment_status (completed/voided)
+// para no duplicar el enum — un gasto anulado se trata igual que un pago anulado.
+export const expenses = pgTable(
+  "expenses",
+  {
+    ...tenantColumns,
+    branchId: uuid("branch_id").references(() => branches.id, { onDelete: "set null" }),
+    category: expenseCategoryEnum("category").notNull(),
+    description: text("description").notNull(),
+    amountCents: integer("amount_cents").notNull(),
+    method: paymentMethodEnum("method").default("cash").notNull(),
+    spentAt: timestamp("spent_at", { withTimezone: true }).defaultNow().notNull(),
+    recordedBy: text("recorded_by").references(() => user.id, { onDelete: "set null" }),
+    status: paymentStatusEnum("status").default("completed").notNull(),
+    voidedAt: timestamp("voided_at", { withTimezone: true }),
+    voidedBy: text("voided_by").references(() => user.id, { onDelete: "set null" }),
+    voidReason: text("void_reason"),
+    notes: text("notes"),
+  },
+  (t) => [
+    index("expenses_org_status_spent_idx").on(t.orgId, t.status, t.spentAt),
+    index("expenses_org_category_idx").on(t.orgId, t.category),
+  ],
+);
+
+// Cierre de caja de un día/sede: snapshot de lo esperado (base + efectivo cobrado - gastos
+// en efectivo) contra lo contado. Un día cerrado queda de solo lectura (Fase 5.6).
+export const cashClosures = pgTable(
+  "cash_closures",
+  {
+    ...tenantColumns,
+    branchId: uuid("branch_id").references(() => branches.id, { onDelete: "set null" }),
+    businessDate: date("business_date").notNull(),
+    openingCashCents: integer("opening_cash_cents").default(0).notNull(),
+    countedCashCents: integer("counted_cash_cents").notNull(),
+    expectedCashCents: integer("expected_cash_cents").notNull(),
+    differenceCents: integer("difference_cents").notNull(),
+    notes: text("notes"),
+    closedBy: text("closed_by").references(() => user.id, { onDelete: "set null" }),
+    reopenedAt: timestamp("reopened_at", { withTimezone: true }),
+    reopenedBy: text("reopened_by").references(() => user.id, { onDelete: "set null" }),
+  },
+  (t) => [
+    // `branch_id` es nullable (una org sin sedes cierra "sin sede"); coalesce con un uuid
+    // fijo para que el índice único cuente ese caso como una sola sede, ya que Postgres
+    // trata cada NULL como distinto en un índice único normal. Parcial sobre las filas
+    // vivas: reabrir es soft delete, y después se tiene que poder volver a cerrar.
+    uniqueIndex("cash_closures_org_branch_date_uidx")
+      .on(
+        t.orgId,
+        sql`coalesce(${t.branchId}, '00000000-0000-0000-0000-000000000000'::uuid)`,
+        t.businessDate,
+      )
+      .where(sql`${t.deletedAt} is null`),
   ],
 );
 
@@ -180,4 +266,8 @@ export type Subscription = typeof subscriptions.$inferSelect;
 export type NewSubscription = typeof subscriptions.$inferInsert;
 export type Payment = typeof payments.$inferSelect;
 export type NewPayment = typeof payments.$inferInsert;
+export type Expense = typeof expenses.$inferSelect;
+export type NewExpense = typeof expenses.$inferInsert;
+export type CashClosure = typeof cashClosures.$inferSelect;
+export type NewCashClosure = typeof cashClosures.$inferInsert;
 export type AuditEntry = typeof auditLog.$inferSelect;

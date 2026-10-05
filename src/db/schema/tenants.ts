@@ -12,6 +12,9 @@ export const orgSettings = pgTable(
     graceDays: integer("grace_days").default(3).notNull(),
     receiptPrefix: text("receipt_prefix").default("REC").notNull(),
     nextReceiptNumber: integer("next_receipt_number").default(1).notNull(),
+    // Precio sugerido de la venta rápida "pase del día" (Fase 5.3). Null = sin precio fijo,
+    // el formulario pide el monto sin precargar.
+    dayPassPriceCents: integer("day_pass_price_cents"),
   },
   (t) => [uniqueIndex("org_settings_org_uidx").on(t.orgId)],
 );

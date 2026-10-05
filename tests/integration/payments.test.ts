@@ -10,6 +10,7 @@ import {
   subscriptions,
   user,
 } from "@/db/schema";
+import { todayISO } from "@/lib/dates";
 import { withTenant } from "@/lib/tenant";
 import { registerPaymentCore } from "@/modules/payments/core";
 import { getCashClose, getSubscriptionBalance, listPayments } from "@/modules/payments/queries";
@@ -172,7 +173,7 @@ describe("pagos: numeración, saldos, anulación y aislamiento", () => {
   });
 
   it("el cierre de caja agrupa por método y usuario", async () => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayISO(); // TZ Bogotá, como getCashClose
     const close = await getCashClose(orgA.id, today);
     expect(close.voided).toHaveLength(1);
     expect(close.completed).toHaveLength(11);

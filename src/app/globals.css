@@ -23,6 +23,9 @@
   --color-chart-3: var(--chart-3);
   --color-chart-2: var(--chart-2);
   --color-chart-1: var(--chart-1);
+  --color-chart-6: var(--chart-6);
+  --color-chart-7: var(--chart-7);
+  --color-chart-8: var(--chart-8);
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -52,6 +55,25 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+  /* Alias para los componentes de Smooth UI (src/components/smoothui/): en vez de la
+     paleta decorativa que trae el registry por defecto (rosa, ámbar/azul/verde propios),
+     se reusa el sistema de diseño del proyecto — acento naranja y semánticos existentes
+     (success/warning/info/destructive) — para que un botón o badge de Smooth UI no
+     desentone. Ver AGENTS.md "Sistema de diseño".*/
+  --color-brand: var(--primary);
+  --color-brand-secondary: color-mix(in oklab, var(--primary) 80%, transparent);
+  --color-amber: var(--warning);
+  --color-amber-fg: var(--warning-foreground);
+  --color-amber-hover: color-mix(in oklab, var(--warning) 80%, transparent);
+  --color-blue: var(--info);
+  --color-blue-fg: var(--info-foreground);
+  --color-blue-hover: color-mix(in oklab, var(--info) 80%, transparent);
+  --color-green: var(--success);
+  --color-green-fg: var(--success-foreground);
+  --color-green-hover: color-mix(in oklab, var(--success) 80%, transparent);
+  /* Tono neutro fuerte para el hover de variantes sin color (Tailwind trae neutral-800
+     por defecto; no hace falta definirlo). */
+  --color-smooth-900: var(--color-neutral-800);
 }
 
 :root {
@@ -79,11 +101,17 @@
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  /* Paleta categórica validada (skill dataviz/references/palette.md): orden fijo, nunca
+     ciclado, CVD Delta E >= 8 en pares adyacentes. El slot 2 (naranja) coincide con el
+     acento de la marca — no es casualidad, se eligió por eso. */
+  --chart-1: #2a78d6; /* azul */
+  --chart-2: #eb6834; /* naranja */
+  --chart-3: #1baf7a; /* aqua */
+  --chart-4: #eda100; /* amarillo */
+  --chart-5: #e87ba4; /* magenta */
+  --chart-6: #008300; /* verde */
+  --chart-7: #4a3aa7; /* violeta */
+  --chart-8: #e34948; /* rojo */
   --radius: 0.625rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
@@ -120,11 +148,15 @@
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  /* Mismos 8 tonos, escalonados para el fondo oscuro (ver palette.md). */
+  --chart-1: #3987e5;
+  --chart-2: #d95926;
+  --chart-3: #199e70;
+  --chart-4: #c98500;
+  --chart-5: #d55181;
+  --chart-6: #008300;
+  --chart-7: #9085e9;
+  --chart-8: #e66767;
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.705 0.213 47.604);

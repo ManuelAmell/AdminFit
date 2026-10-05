@@ -9,7 +9,13 @@ import { withTenant } from "@/lib/tenant";
 import { audit } from "@/modules/audit";
 import { registerPaymentCore } from "./core";
 import { getMemberBillingContext } from "./queries";
-import { registerPaymentSchema, voidPaymentSchema, type RegisterPaymentInput } from "./schema";
+import {
+  quickSaleSchema,
+  registerPaymentSchema,
+  voidPaymentSchema,
+  type QuickSaleInput,
+  type RegisterPaymentInput,
+} from "./schema";
 
 export type ActionResult<T = undefined> =
   { ok: true; data: T } | { ok: false; error: string; fieldErrors?: Record<string, string> };
@@ -59,6 +65,53 @@ export async function registerPayment(
       err instanceof Error &&
       !(err instanceof ForbiddenError) &&
       /socio|membresía/.test(err.message)
+    ) {
+      return { ok: false, error: err.message };
+    }
+    return fail(err);
+  }
+}
+
+export async function registerQuickSale(
+  orgSlug: string,
+  input: QuickSaleInput,
+): Promise<ActionResult<{ id: string; receiptNumber: number }>> {
+  try {
+    const ctx = await requirePermission(orgSlug, { payment: ["create"] });
+    const parsed = quickSaleSchema.safeParse(input);
+    if (!parsed.success) {
+      const fieldErrors: Record<string, string> = {};
+      for (const issue of parsed.error.issues) {
+        const key = String(issue.path[0] ?? "form");
+        if (!fieldErrors[key]) fieldErrors[key] = issue.message;
+      }
+      return { ok: false, error: "Revisa los campos marcados.", fieldErrors };
+    }
+    const d = parsed.data;
+    const amountCents = parsePesosInput(d.amount)!;
+    const created = await withTenant(ctx.org.id, (tx) =>
+      registerPaymentCore(
+        tx,
+        { orgId: ctx.org.id, userId: ctx.userId },
+        {
+          concept: d.concept,
+          memberId: d.memberId ?? null,
+          payerName: d.payerName,
+          branchId: d.branchId ?? null,
+          amountCents,
+          method: d.method,
+          reference: d.reference,
+          notes: d.notes,
+        },
+      ),
+    );
+    revalidatePath(`/app/${orgSlug}/payments`);
+    return { ok: true, data: created };
+  } catch (err) {
+    if (
+      err instanceof Error &&
+      !(err instanceof ForbiddenError) &&
+      /socio|nombre de quien paga/.test(err.message)
     ) {
       return { ok: false, error: err.message };
     }

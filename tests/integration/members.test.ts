@@ -61,9 +61,9 @@ describe("módulo socios", () => {
     expect(parsed.birthDate).toBeNull();
     expect(parsed.notes).toBeNull();
     expect(memberInputSchema.safeParse({ ...base, documentNumber: "12" }).success).toBe(false);
-    expect(memberInputSchema.safeParse({ ...base, documentNumber: "1234", email: "x" }).success).toBe(
-      false,
-    );
+    expect(
+      memberInputSchema.safeParse({ ...base, documentNumber: "1234", email: "x" }).success,
+    ).toBe(false);
   });
 
   it("lista solo los socios del tenant y busca por nombre/documento/teléfono", async () => {
@@ -101,7 +101,10 @@ describe("módulo socios", () => {
 
   it("getMember devuelve el estado derivado de la membresía", async () => {
     const [m] = await withTenant(orgA.id, (tx) =>
-      tx.select().from(members).where(eq(members.documentNumber, `1001${run}`)),
+      tx
+        .select()
+        .from(members)
+        .where(eq(members.documentNumber, `1001${run}`)),
     );
     const before = await getMember(orgA.id, m.id);
     expect(before?.membership).toBe("none");
@@ -158,7 +161,10 @@ describe("módulo socios", () => {
     expect(rows[1]).toMatchObject({ ok: true, row: 3 });
     expect(rows[1].ok && rows[1].values.documentType).toBe("CC");
     expect(rows[2].ok).toBe(false);
-    expect(rows[3]).toMatchObject({ ok: false, errors: ["Documento repetido en el archivo (fila 2)."] });
+    expect(rows[3]).toMatchObject({
+      ok: false,
+      errors: ["Documento repetido en el archivo (fila 2)."],
+    });
 
     expect(parseMembersCsv("nombres,apellidos\nA,B").headerError).toMatch(/numero_documento/);
   });

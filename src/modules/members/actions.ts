@@ -6,6 +6,7 @@ import { members } from "@/db/schema";
 import { ForbiddenError, requirePermission } from "@/lib/auth/authorize";
 import { withTenant } from "@/lib/tenant";
 import { audit } from "@/modules/audit";
+import { checkMemberLimit } from "@/modules/platform/limits";
 import { memberInputSchema, memberStatusSchema, type MemberInput } from "./schema";
 
 export type ActionResult<T = undefined> =
@@ -44,6 +45,10 @@ export async function createMember(
 ): Promise<ActionResult<{ id: string }>> {
   try {
     const { org, userId } = await requirePermission(orgSlug, { gymMember: ["create"] });
+    const limit = await checkMemberLimit(org.id);
+    if (!limit.allowed) {
+      return { ok: false, error: limit.reason };
+    }
     const parsed = memberInputSchema.safeParse(input);
     if (!parsed.success) {
       return { ok: false, error: "Revisa los campos.", fieldErrors: zodFieldErrors(parsed.error) };

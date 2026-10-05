@@ -17,9 +17,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SubmitButton, useSubmitFlash } from "@/components/motion/submit-button";
 import { Spinner } from "@/components/ui/spinner";
 import { formatDate } from "@/lib/dates";
-import { formatCOP, parsePesosInput } from "@/lib/money";
+import { formatCOP, formatPesosLive, parsePesosInput } from "@/lib/money";
 import { getMemberBillingContextAction, registerPayment } from "@/modules/payments/actions";
 import {
   PAYMENT_METHODS,
@@ -37,12 +38,6 @@ const methodItems = PAYMENT_METHODS.map((value) => ({
   label: PAYMENT_METHOD_LABELS[value],
 }));
 
-function formatPesosLive(raw: string) {
-  const digits = raw.replace(/[^\d]/g, "");
-  if (!digits) return "";
-  return new Intl.NumberFormat("es-CO").format(Number(digits));
-}
-
 function toLocalDatetimeValue(d: Date) {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
@@ -51,9 +46,12 @@ function toLocalDatetimeValue(d: Date) {
 export function NewPaymentForm({
   orgSlug,
   initialMember,
+  initialSubscriptionId,
 }: {
   orgSlug: string;
   initialMember: PickedMember | null;
+  /** Preselecciona esta membresía al cargar el contexto de facturación (viene de Cartera). */
+  initialSubscriptionId?: string | null;
 }) {
   const router = useRouter();
   const [member, setMember] = useState<PickedMember | null>(initialMember);
@@ -75,6 +73,7 @@ export function NewPaymentForm({
     mode: "onBlur",
   });
   const { errors, isSubmitting } = form.formState;
+  const { success, flashSuccess } = useSubmitFlash();
   const method = useWatch({ control: form.control, name: "method" }) as PaymentMethod;
   const subscriptionId = useWatch({ control: form.control, name: "subscriptionId" });
   const amount = useWatch({ control: form.control, name: "amount" });
@@ -85,19 +84,24 @@ export function NewPaymentForm({
       startBilling(async () => {
         const ctx = await getMemberBillingContextAction(orgSlug, m.id);
         setBilling(ctx);
-        const first = ctx?.subscriptions[0];
-        if (first) {
-          form.setValue("subscriptionId", first.id);
-          if (first.balance && first.balance.balanceCents > 0 && !form.getValues("amount")) {
+        // Si se llegó desde Cartera con una membresía puntual, se preselecciona esa en vez
+        // de la más reciente (el socio puede tener más de una activa/congelada).
+        const preselected = initialSubscriptionId
+          ? ctx?.subscriptions.find((s) => s.id === initialSubscriptionId)
+          : undefined;
+        const target = preselected ?? ctx?.subscriptions[0];
+        if (target) {
+          form.setValue("subscriptionId", target.id);
+          if (target.balance && target.balance.balanceCents > 0 && !form.getValues("amount")) {
             form.setValue(
               "amount",
-              formatPesosLive(String(Math.round(first.balance.balanceCents / 100))),
+              formatPesosLive(String(Math.round(target.balance.balanceCents / 100))),
             );
           }
         }
       });
     },
-    [orgSlug, form],
+    [orgSlug, form, initialSubscriptionId],
   );
 
   function handleMemberChange(m: PickedMember | null) {
@@ -141,6 +145,7 @@ export function NewPaymentForm({
       return;
     }
     toast.success(`Pago registrado. Recibo N.º ${res.data.receiptNumber}.`);
+    await flashSuccess();
     router.push(`/app/${orgSlug}/payments/${res.data.id}`);
   }
 
@@ -350,15 +355,16 @@ export function NewPaymentForm({
         >
           Cancelar
         </Button>
-        <Button
+        <SubmitButton
           type="submit"
           size="lg"
           className="h-11 sm:min-w-44"
           disabled={isSubmitting || !member}
+          loading={isSubmitting}
+          success={success}
         >
-          {isSubmitting && <Spinner />}
           Registrar pago{amountCents > 0 ? ` · ${formatCOP(amountCents)}` : ""}
-        </Button>
+        </SubmitButton>
       </div>
     </form>
   );

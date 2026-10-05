@@ -1,0 +1,2 @@
+DROP INDEX "cash_closures_org_branch_date_uidx";--> statement-breakpoint
+CREATE UNIQUE INDEX "cash_closures_org_branch_date_uidx" ON "cash_closures" USING btree ("org_id",coalesce("branch_id", '00000000-0000-0000-0000-000000000000'::uuid),"business_date") WHERE "cash_closures"."deleted_at" is null;

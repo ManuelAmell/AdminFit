@@ -10,6 +10,7 @@ import {
 import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight } from "lucide-react";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import { StaggerTableBody, StaggerTableRow } from "@/components/motion/stagger-list";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -123,7 +124,7 @@ export function DataTable<TData>({
               </TableRow>
             ))}
           </TableHeader>
-          <TableBody>
+          <StaggerTableBody>
             {data.length === 0 ? (
               <TableRow className="hover:bg-transparent">
                 <TableCell colSpan={columns.length} className="h-40 text-center whitespace-normal">
@@ -131,9 +132,10 @@ export function DataTable<TData>({
                 </TableCell>
               </TableRow>
             ) : (
-              table.getRowModel().rows.map((row) => (
-                <TableRow
+              table.getRowModel().rows.map((row, index) => (
+                <StaggerTableRow
                   key={row.id}
+                  index={index}
                   onClick={onRowClick ? () => onRowClick(row.original) : undefined}
                   className={cn(onRowClick && "cursor-pointer")}
                 >
@@ -145,10 +147,10 @@ export function DataTable<TData>({
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}
-                </TableRow>
+                </StaggerTableRow>
               ))
             )}
-          </TableBody>
+          </StaggerTableBody>
         </Table>
       </div>
 

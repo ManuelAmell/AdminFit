@@ -7,7 +7,11 @@ import { Button } from "@/components/ui/button";
 import { requireOrg } from "@/lib/auth/session";
 import { dateTimeFmt, formatDate } from "@/lib/dates";
 import { centsToPesos, formatCOP } from "@/lib/money";
-import { PAYMENT_METHOD_LABELS, formatReceiptNumber } from "@/modules/payments/constants";
+import {
+  PAYMENT_CONCEPT_LABELS,
+  PAYMENT_METHOD_LABELS,
+  formatReceiptNumber,
+} from "@/modules/payments/constants";
 import { PrintButton } from "@/modules/payments/print/print-button";
 import { PrintStyles } from "@/modules/payments/print/print-styles";
 import { pesosToWords } from "@/modules/payments/print/number-to-words";
@@ -28,9 +32,11 @@ export default async function ReceiptPage(
   const balance = subscription?.id ? await getSubscriptionBalance(org.id, subscription.id) : null;
   const settings = info.settings;
   const receiptLabel = formatReceiptNumber(settings?.receiptPrefix ?? "REC", payment.receiptNumber);
-  const concept = subscription?.id
+  const conceptLabel = subscription?.id
     ? `Membresía ${planName} (${formatDate(subscription.startDate)} – ${formatDate(subscription.endDate)})`
-    : "Abono a cuenta";
+    : payment.concept === "membership"
+      ? "Abono a cuenta"
+      : PAYMENT_CONCEPT_LABELS[payment.concept];
   const base = `/app/${org.slug}/payments`;
 
   return (
@@ -105,14 +111,20 @@ export default async function ReceiptPage(
               <span className="text-muted-foreground text-xs tracking-wide uppercase">
                 Recibido de
               </span>
-              <span className="font-medium">
-                {member.firstName} {member.lastName}
-              </span>
-              <span className="text-muted-foreground text-sm">
-                {member.documentType} {member.documentNumber}
-              </span>
-              {member.phone && (
-                <span className="text-muted-foreground text-sm">{member.phone}</span>
+              {member ? (
+                <>
+                  <span className="font-medium">
+                    {member.firstName} {member.lastName}
+                  </span>
+                  <span className="text-muted-foreground text-sm">
+                    {member.documentType} {member.documentNumber}
+                  </span>
+                  {member.phone && (
+                    <span className="text-muted-foreground text-sm">{member.phone}</span>
+                  )}
+                </>
+              ) : (
+                <span className="font-medium">{payment.payerName ?? "Sin nombre"}</span>
               )}
             </div>
             <div className="flex flex-col gap-1 sm:text-right">
@@ -135,7 +147,7 @@ export default async function ReceiptPage(
             </thead>
             <tbody>
               <tr>
-                <td className="py-3">{concept}</td>
+                <td className="py-3">{conceptLabel}</td>
                 <td className="py-3 text-right font-medium tabular-nums">
                   {formatCOP(payment.amountCents)}
                 </td>

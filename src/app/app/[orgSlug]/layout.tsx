@@ -5,7 +5,9 @@ import { member } from "@/db/schema";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { ImpersonationBanner } from "@/components/layout/impersonation-banner";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { can } from "@/lib/auth/authorize";
 import { getCurrentSession, requireOrg } from "@/lib/auth/session";
+import { getDebtorsCount } from "@/modules/payments/queries";
 
 export default async function OrgLayout({ children, params }: LayoutProps<"/app/[orgSlug]">) {
   const { orgSlug } = await params;
@@ -14,11 +16,13 @@ export default async function OrgLayout({ children, params }: LayoutProps<"/app/
     getCurrentSession(),
     cookies(),
   ]);
-
-  const memberships = await db.query.member.findMany({
-    where: eq(member.userId, userId),
-    with: { organization: { columns: { id: true, name: true, slug: true } } },
-  });
+  const [memberships, debtorsCount] = await Promise.all([
+    db.query.member.findMany({
+      where: eq(member.userId, userId),
+      with: { organization: { columns: { id: true, name: true, slug: true } } },
+    }),
+    can({ role, isSuperadmin }, { debt: ["read"] }) ? getDebtorsCount(org.id) : undefined,
+  ]);
   const orgs = memberships.map((m) => m.organization);
   if (isSuperadmin && !orgs.some((o) => o.id === org.id)) {
     orgs.unshift({ id: org.id, name: org.name, slug: org.slug });
@@ -32,6 +36,7 @@ export default async function OrgLayout({ children, params }: LayoutProps<"/app/
         org={{ id: org.id, name: org.name, slug: org.slug }}
         orgs={orgs}
         role={role}
+        debtorsCount={debtorsCount}
         user={{
           name: session!.user.name,
           email: session!.user.email,

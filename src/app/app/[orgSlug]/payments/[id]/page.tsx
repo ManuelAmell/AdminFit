@@ -12,6 +12,7 @@ import { requireOrg } from "@/lib/auth/session";
 import { dateTimeFmt, formatDate } from "@/lib/dates";
 import { formatCOP } from "@/lib/money";
 import {
+  PAYMENT_CONCEPT_LABELS,
   PAYMENT_METHOD_LABELS,
   PAYMENT_STATUS_LABELS,
   formatReceiptNumber,
@@ -39,6 +40,10 @@ export default async function PaymentDetailPage(props: PageProps<"/app/[orgSlug]
   if (!data) notFound();
   const { payment, member, subscription, planName, receivedByName, voidedByName } = data;
   const balance = subscription?.id ? await getSubscriptionBalance(org.id, subscription.id) : null;
+  // Venta rápida (5.3): sin socio, se identifica por payerName.
+  const displayName = member
+    ? `${member.firstName} ${member.lastName}`
+    : (payment.payerName ?? "Sin socio");
 
   const receiptLabel = formatReceiptNumber(
     info.settings?.receiptPrefix ?? "REC",
@@ -52,7 +57,7 @@ export default async function PaymentDetailPage(props: PageProps<"/app/[orgSlug]
     <>
       <PageHeader
         title={`Recibo ${receiptLabel}`}
-        description={`${member.firstName} ${member.lastName}`}
+        description={displayName}
         actions={
           <>
             <Button
@@ -116,6 +121,7 @@ export default async function PaymentDetailPage(props: PageProps<"/app/[orgSlug]
                     {PAYMENT_STATUS_LABELS[payment.status]}
                   </Badge>
                 </Row>
+                <Row label="Concepto">{PAYMENT_CONCEPT_LABELS[payment.concept]}</Row>
                 <Row label="Fecha de pago">{dateTimeFmt.format(payment.paidAt)}</Row>
                 <Row label="Método">
                   {PAYMENT_METHOD_LABELS[payment.method]}
@@ -135,56 +141,71 @@ export default async function PaymentDetailPage(props: PageProps<"/app/[orgSlug]
             <Card>
               <CardHeader>
                 <CardTitle role="heading" aria-level={2}>
-                  Socio
+                  {member ? "Socio" : "Cliente"}
                 </CardTitle>
               </CardHeader>
               <CardContent className="flex flex-col gap-1 text-sm">
-                <span className="font-medium">
-                  {member.firstName} {member.lastName}
-                </span>
-                <span className="text-muted-foreground">
-                  {member.documentType} {member.documentNumber}
-                </span>
-                {member.phone && <span className="text-muted-foreground">{member.phone}</span>}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle role="heading" aria-level={2}>
-                  Membresía
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="flex flex-col gap-2 text-sm">
-                {subscription?.id ? (
+                {member ? (
                   <>
-                    <span className="font-medium">{planName}</span>
-                    <span className="text-muted-foreground tabular-nums">
-                      {formatDate(subscription.startDate)} → {formatDate(subscription.endDate)}
+                    <span className="font-medium">
+                      {member.firstName} {member.lastName}
                     </span>
-                    {balance && (
-                      <dl className="mt-1 grid grid-cols-2 gap-y-1">
-                        <dt className="text-muted-foreground">Precio</dt>
-                        <dd className="text-right tabular-nums">{formatCOP(balance.priceCents)}</dd>
-                        <dt className="text-muted-foreground">Pagado</dt>
-                        <dd className="text-right tabular-nums">{formatCOP(balance.paidCents)}</dd>
-                        <dt className="font-medium">Saldo</dt>
-                        <dd
-                          className={
-                            "text-right font-medium tabular-nums " +
-                            (balance.balanceCents > 0 ? "text-destructive" : "text-success")
-                          }
-                        >
-                          {formatCOP(balance.balanceCents)}
-                        </dd>
-                      </dl>
-                    )}
+                    <span className="text-muted-foreground">
+                      {member.documentType} {member.documentNumber}
+                    </span>
+                    {member.phone && <span className="text-muted-foreground">{member.phone}</span>}
                   </>
                 ) : (
-                  <span className="text-muted-foreground">Abono sin membresía asociada.</span>
+                  <>
+                    <span className="font-medium">{payment.payerName ?? "Sin nombre"}</span>
+                    <span className="text-muted-foreground">Venta sin socio registrado.</span>
+                  </>
                 )}
               </CardContent>
             </Card>
+
+            {member && (
+              <Card>
+                <CardHeader>
+                  <CardTitle role="heading" aria-level={2}>
+                    Membresía
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-col gap-2 text-sm">
+                  {subscription?.id ? (
+                    <>
+                      <span className="font-medium">{planName}</span>
+                      <span className="text-muted-foreground tabular-nums">
+                        {formatDate(subscription.startDate)} → {formatDate(subscription.endDate)}
+                      </span>
+                      {balance && (
+                        <dl className="mt-1 grid grid-cols-2 gap-y-1">
+                          <dt className="text-muted-foreground">Precio</dt>
+                          <dd className="text-right tabular-nums">
+                            {formatCOP(balance.priceCents)}
+                          </dd>
+                          <dt className="text-muted-foreground">Pagado</dt>
+                          <dd className="text-right tabular-nums">
+                            {formatCOP(balance.paidCents)}
+                          </dd>
+                          <dt className="font-medium">Saldo</dt>
+                          <dd
+                            className={
+                              "text-right font-medium tabular-nums " +
+                              (balance.balanceCents > 0 ? "text-destructive" : "text-success")
+                            }
+                          >
+                            {formatCOP(balance.balanceCents)}
+                          </dd>
+                        </dl>
+                      )}
+                    </>
+                  ) : (
+                    <span className="text-muted-foreground">Abono sin membresía asociada.</span>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </div>

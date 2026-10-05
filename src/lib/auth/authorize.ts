@@ -1,18 +1,11 @@
 import { headers } from "next/headers";
 import { auth } from "./auth";
-import { roles, statements, type OrgRole } from "./permissions";
+import { roleCan, type Permissions } from "./permissions";
 import { requireOrg, type OrgContext } from "./session";
 
-type StatementKey = keyof typeof statements;
-export type Permissions = { [K in StatementKey]?: (typeof statements)[K][number][] };
-
-// Comprueba en memoria (sin DB extra) si el rol de la org permite la acción.
-export function roleCan(role: OrgRole, permissions: Permissions): boolean {
-  const r = roles[role];
-  if (!r) return false;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return r.authorize(permissions as any).success;
-}
+// roleCan/can/Permissions viven en permissions.ts (sin imports server-only) y se
+// re-exportan aquí para no romper los imports existentes desde @/lib/auth/authorize.
+export { roleCan, can, type Permissions } from "./permissions";
 
 export class ForbiddenError extends Error {
   constructor(message = "No tienes permiso para esta acción.") {

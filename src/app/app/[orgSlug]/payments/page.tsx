@@ -1,23 +1,18 @@
 import type { Metadata } from "next";
-import { ChevronLeft, ChevronRight, ClipboardList, Plus, Receipt } from "lucide-react";
+import { ChevronLeft, ChevronRight, ClipboardList, Plus, Receipt, Zap } from "lucide-react";
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { StaggerTableBody, StaggerTableRow } from "@/components/motion/stagger-list";
 import { roleCan } from "@/lib/auth/authorize";
 import { requireOrg } from "@/lib/auth/session";
 import { dateTimeFmt } from "@/lib/dates";
 import { formatCOP } from "@/lib/money";
 import {
+  PAYMENT_CONCEPT_LABELS,
   PAYMENT_METHOD_LABELS,
   PAYMENT_STATUS_LABELS,
   type PaymentMethod,
@@ -75,15 +70,27 @@ export default async function PaymentsPage(props: PageProps<"/app/[orgSlug]/paym
               <span className="hidden sm:inline">Cierre de caja</span>
             </Button>
             {canCreate && (
-              <Button
-                size="sm"
-                className="h-9"
-                nativeButton={false}
-                render={<Link href={`${base}/new`} />}
-              >
-                <Plus data-icon="inline-start" />
-                Registrar pago
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9"
+                  nativeButton={false}
+                  render={<Link href={`${base}/quick`} />}
+                >
+                  <Zap data-icon="inline-start" />
+                  <span className="hidden sm:inline">Venta rápida</span>
+                </Button>
+                <Button
+                  size="sm"
+                  className="h-9"
+                  nativeButton={false}
+                  render={<Link href={`${base}/new`} />}
+                >
+                  <Plus data-icon="inline-start" />
+                  Registrar pago
+                </Button>
+              </>
             )}
           </>
         }
@@ -169,9 +176,9 @@ export default async function PaymentsPage(props: PageProps<"/app/[orgSlug]/paym
                       <TableHead className="pr-6">Estado</TableHead>
                     </TableRow>
                   </TableHeader>
-                  <TableBody>
-                    {result.rows.map((p) => (
-                      <TableRow key={p.id} data-payment-id={p.id}>
+                  <StaggerTableBody>
+                    {result.rows.map((p, index) => (
+                      <StaggerTableRow key={p.id} index={index} data-payment-id={p.id}>
                         <TableCell className="pl-6 font-mono text-xs">
                           <Link
                             href={`${base}/${p.id}`}
@@ -186,10 +193,14 @@ export default async function PaymentsPage(props: PageProps<"/app/[orgSlug]/paym
                         <TableCell>
                           <div className="flex flex-col leading-tight">
                             <span className="font-medium">
-                              {p.memberFirstName} {p.memberLastName}
+                              {p.memberFirstName
+                                ? `${p.memberFirstName} ${p.memberLastName}`
+                                : (p.payerName ?? "Sin nombre")}
                             </span>
                             <span className="text-muted-foreground text-xs">
-                              {p.memberDocument}
+                              {p.memberFirstName
+                                ? p.memberDocument
+                                : PAYMENT_CONCEPT_LABELS[p.concept]}
                             </span>
                           </div>
                         </TableCell>
@@ -219,9 +230,9 @@ export default async function PaymentsPage(props: PageProps<"/app/[orgSlug]/paym
                             {PAYMENT_STATUS_LABELS[p.status]}
                           </Badge>
                         </TableCell>
-                      </TableRow>
+                      </StaggerTableRow>
                     ))}
-                  </TableBody>
+                  </StaggerTableBody>
                 </Table>
               </div>
             )}

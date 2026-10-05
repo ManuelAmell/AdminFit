@@ -6,6 +6,8 @@ import { db } from "./index";
 import {
   account,
   branches,
+  cashClosures,
+  expenses,
   member,
   members,
   orgSettings,
@@ -28,6 +30,7 @@ const ORG_SLUG = "gimnasio-test";
 const SUPERADMIN_EMAIL = "admin@adminfit.test";
 const OWNER_EMAIL = "owner@gimnasiotest.test";
 const OWNER2_EMAIL = "owner2@gimnasiotest.test";
+const ADMIN_EMAIL = "admin.role@gimnasiotest.test";
 const STAFF_EMAIL = "staff@gimnasiotest.test";
 
 async function createUser(name: string, email: string, role?: string) {
@@ -62,7 +65,7 @@ async function main() {
   if (existingOrg) {
     await withPlatform((tx) => tx.delete(organization).where(eq(organization.id, existingOrg.id)));
   }
-  for (const email of [SUPERADMIN_EMAIL, OWNER_EMAIL, OWNER2_EMAIL, STAFF_EMAIL]) {
+  for (const email of [SUPERADMIN_EMAIL, OWNER_EMAIL, OWNER2_EMAIL, ADMIN_EMAIL, STAFF_EMAIL]) {
     await db.delete(user).where(eq(user.email, email));
   }
 
@@ -70,6 +73,8 @@ async function main() {
   await createUser("Ana Superadmin", SUPERADMIN_EMAIL, "superadmin");
   const ownerId = await createUser("Carlos Dueño", OWNER_EMAIL);
   const owner2Id = await createUser("Diana Codueña", OWNER2_EMAIL);
+  // Los 3 roles de org (Fase 5): admin ve todo excepto eliminar el gimnasio y la nómina.
+  const adminId = await createUser("Andrés Admin", ADMIN_EMAIL);
   const staffId = await createUser("Laura Recepción", STAFF_EMAIL);
 
   console.log("Creando organización...");
@@ -106,6 +111,13 @@ async function main() {
     {
       id: randomUUID(),
       organizationId: orgId,
+      userId: adminId,
+      role: "admin",
+      createdAt: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000),
+    },
+    {
+      id: randomUUID(),
+      organizationId: orgId,
       userId: staffId,
       role: "staff",
       createdAt: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000),
@@ -120,7 +132,8 @@ async function main() {
       orgId,
       graceDays: 3,
       receiptPrefix: "REC",
-      nextReceiptNumber: 5,
+      nextReceiptNumber: 6,
+      dayPassPriceCents: pesosToCents(15_000),
     });
 
     const [sedePrincipal, sedeNorte] = await tx
@@ -153,7 +166,7 @@ async function main() {
       ])
       .returning({ id: plans.id, priceCents: plans.priceCents });
 
-    const [maria, juan, sofia] = await tx
+    const [maria, juan, sofia, pedro] = await tx
       .insert(members)
       .values([
         {
@@ -183,41 +196,64 @@ async function main() {
           phone: "3009876543",
           branchId: sedePrincipal.id,
         },
+        {
+          // Con saldo pendiente (Cartera): abona parte de la mensualidad.
+          orgId,
+          documentType: "CC",
+          documentNumber: "1004",
+          firstName: "Pedro",
+          lastName: "Londoño",
+          phone: "3005551234",
+          branchId: sedePrincipal.id,
+        },
       ])
       .returning({ id: members.id });
 
-    await tx.insert(subscriptions).values([
-      {
-        // Al día: vence en 20 días.
-        orgId,
-        memberId: maria.id,
-        planId: mensual.id,
-        startDate: addDaysISO(today, -10),
-        endDate: addDaysISO(today, 20),
-        status: "active",
-        priceCentsSnapshot: mensual.priceCents,
-      },
-      {
-        // Por vencer: dentro de EXPIRING_SOON_DAYS (5).
-        orgId,
-        memberId: juan.id,
-        planId: mensual.id,
-        startDate: addDaysISO(today, -27),
-        endDate: addDaysISO(today, 3),
-        status: "active",
-        priceCentsSnapshot: mensual.priceCents,
-      },
-      {
-        // Vencida: venció hace 10 días, más allá de los graceDays (3).
-        orgId,
-        memberId: sofia.id,
-        planId: trimestral.id,
-        startDate: addDaysISO(today, -100),
-        endDate: addDaysISO(today, -10),
-        status: "active",
-        priceCentsSnapshot: trimestral.priceCents,
-      },
-    ]);
+    const [, , , subPedro] = await tx
+      .insert(subscriptions)
+      .values([
+        {
+          // Al día: vence en 20 días.
+          orgId,
+          memberId: maria.id,
+          planId: mensual.id,
+          startDate: addDaysISO(today, -10),
+          endDate: addDaysISO(today, 20),
+          status: "active",
+          priceCentsSnapshot: mensual.priceCents,
+        },
+        {
+          // Por vencer: dentro de EXPIRING_SOON_DAYS (5).
+          orgId,
+          memberId: juan.id,
+          planId: mensual.id,
+          startDate: addDaysISO(today, -27),
+          endDate: addDaysISO(today, 3),
+          status: "active",
+          priceCentsSnapshot: mensual.priceCents,
+        },
+        {
+          // Vencida: venció hace 10 días, más allá de los graceDays (3).
+          orgId,
+          memberId: sofia.id,
+          planId: trimestral.id,
+          startDate: addDaysISO(today, -100),
+          endDate: addDaysISO(today, -10),
+          status: "active",
+          priceCentsSnapshot: trimestral.priceCents,
+        },
+        {
+          // Con saldo pendiente: abona 30.000 de 80.000 (Cartera).
+          orgId,
+          memberId: pedro.id,
+          planId: mensual.id,
+          startDate: addDaysISO(today, -5),
+          endDate: addDaysISO(today, 25),
+          status: "active",
+          priceCentsSnapshot: mensual.priceCents,
+        },
+      ])
+      .returning({ id: subscriptions.id });
 
     await tx.insert(payments).values([
       {
@@ -263,15 +299,103 @@ async function main() {
         voidedBy: staffId,
         voidReason: "Recibo duplicado",
       },
+      {
+        // Abono parcial: deja a Pedro en Cartera con 50.000 pendientes.
+        orgId,
+        memberId: pedro.id,
+        subscriptionId: subPedro.id,
+        branchId: sedePrincipal.id,
+        concept: "membership",
+        amountCents: pesosToCents(30_000),
+        method: "cash",
+        receiptNumber: 5,
+        receivedBy: staffId,
+        status: "completed",
+      },
+      {
+        // Venta rápida sin socio (Fase 5.3): pase del día.
+        orgId,
+        payerName: "Visitante del día",
+        branchId: sedePrincipal.id,
+        concept: "day_pass",
+        amountCents: pesosToCents(15_000),
+        method: "cash",
+        receiptNumber: 6,
+        receivedBy: staffId,
+        status: "completed",
+      },
     ]);
+
+    console.log("Creando gastos...");
+    await tx.insert(expenses).values([
+      {
+        orgId,
+        branchId: sedePrincipal.id,
+        category: "rent",
+        description: "Arriendo de septiembre",
+        amountCents: pesosToCents(1_200_000),
+        method: "transfer",
+        spentAt: new Date(new Date(today).setDate(1)),
+        recordedBy: ownerId,
+      },
+      {
+        orgId,
+        branchId: sedePrincipal.id,
+        category: "utilities",
+        description: "Energía y agua",
+        amountCents: pesosToCents(280_000),
+        method: "transfer",
+        recordedBy: adminId,
+      },
+      {
+        // Nómina: solo owner la ve (expense.readPayroll) — sirve para probar el filtro.
+        orgId,
+        branchId: sedePrincipal.id,
+        category: "payroll",
+        description: "Quincena entrenador",
+        amountCents: pesosToCents(650_000),
+        method: "transfer",
+        recordedBy: ownerId,
+      },
+      {
+        // Caja menor, registrada por Recepción (lo único que su rol puede crear).
+        orgId,
+        branchId: sedePrincipal.id,
+        category: "supplies",
+        description: "Papelería",
+        amountCents: pesosToCents(25_000),
+        method: "cash",
+        recordedBy: staffId,
+      },
+    ]);
+
+    console.log("Creando un cierre de caja con faltante...");
+    // Ayer: cerrada con un faltante de 5.000 — para ver el aviso de diferencia sin tener
+    // que hacer el arqueo a mano. Base 50.000 + nada de efectivo cobrado ayer - nada de
+    // gastos = esperado 50.000; se cuentan 45.000.
+    await tx.insert(cashClosures).values({
+      orgId,
+      branchId: sedePrincipal.id,
+      businessDate: addDaysISO(today, -1),
+      openingCashCents: pesosToCents(50_000),
+      countedCashCents: pesosToCents(45_000),
+      expectedCashCents: pesosToCents(50_000),
+      differenceCents: pesosToCents(-5_000),
+      notes: "Faltaron 5.000, no se encontró el motivo.",
+      closedBy: staffId,
+    });
   });
 
   console.log("\nListo. Credenciales de prueba (contraseña para todas: " + PASSWORD + "):\n");
   console.log(`  Superadmin  ${SUPERADMIN_EMAIL}   → /admin`);
   console.log(`  Owner       ${OWNER_EMAIL}   → /app/${ORG_SLUG}/dashboard`);
   console.log(`  Owner 2     ${OWNER2_EMAIL}`);
+  console.log(`  Admin       ${ADMIN_EMAIL}`);
   console.log(`  Staff       ${STAFF_EMAIL}`);
   console.log(`\n  Org: Gimnasio Test (slug: ${ORG_SLUG})`);
+  console.log(
+    "  Pedro Londoño tiene saldo pendiente (Cartera); ayer quedó un cierre de caja con faltante.",
+  );
 }
 
 main()

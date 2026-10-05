@@ -1,10 +1,12 @@
 "use client";
 
 import { Building2, Check, ChevronsUpDown, LogOut, Plus, ShieldCheck } from "lucide-react";
+import { motion } from "motion/react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Logo } from "@/components/brand/logo";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -49,16 +51,19 @@ export function AppSidebar({
   orgs,
   role,
   user,
+  debtorsCount,
 }: {
   org: SidebarOrg;
   orgs: SidebarOrg[];
-  role: string;
+  role: OrgRole;
   user: SidebarUser;
+  /** Socios con saldo pendiente, para el badge de "Cartera" (0/undefined = sin badge). */
+  debtorsCount?: number;
 }) {
   const pathname = usePathname();
   const router = useRouter();
   const { setOpenMobile } = useSidebar();
-  const nav = orgNav(org.slug);
+  const nav = orgNav(org.slug, { role, isSuperadmin: user.isSuperadmin }, { debtorsCount });
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
   async function switchOrg(target: SidebarOrg) {
@@ -142,6 +147,18 @@ export function AppSidebar({
                   >
                     <item.icon aria-hidden="true" />
                     <span>{item.label}</span>
+                    {!!item.badge && (
+                      <motion.span
+                        initial={{ scale: 0, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={{ type: "spring", bounce: 0.3, duration: 0.3 }}
+                        className="ml-auto"
+                      >
+                        <Badge variant="destructive" className="h-5 min-w-5 justify-center px-1">
+                          {item.badge}
+                        </Badge>
+                      </motion.span>
+                    )}
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}

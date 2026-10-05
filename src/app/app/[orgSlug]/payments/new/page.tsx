@@ -12,8 +12,12 @@ export const metadata: Metadata = { title: "Registrar pago — AdminFit" };
 
 export default async function NewPaymentPage(props: PageProps<"/app/[orgSlug]/payments/new">) {
   const { orgSlug } = await props.params;
-  const { memberId } = await props.searchParams;
+  const { memberId, subscriptionId } = await props.searchParams;
   const { org } = await requirePermission(orgSlug, { payment: ["create"] });
+  const initialSubscriptionId =
+    typeof subscriptionId === "string" && /^[0-9a-f-]{36}$/i.test(subscriptionId)
+      ? subscriptionId
+      : null;
 
   let initialMember: PickedMember | null = null;
   if (typeof memberId === "string" && /^[0-9a-f-]{36}$/i.test(memberId)) {
@@ -40,7 +44,11 @@ export default async function NewPaymentPage(props: PageProps<"/app/[orgSlug]/pa
       <div className="flex flex-1 flex-col p-4 md:p-6">
         <Card className="mx-auto w-full max-w-2xl">
           <CardContent className="pt-6">
-            <NewPaymentForm orgSlug={org.slug} initialMember={initialMember} />
+            <NewPaymentForm
+              orgSlug={org.slug}
+              initialMember={initialMember}
+              initialSubscriptionId={initialSubscriptionId}
+            />
           </CardContent>
         </Card>
       </div>

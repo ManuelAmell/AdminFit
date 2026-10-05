@@ -1,6 +1,4 @@
-import { TZDate } from "@date-fns/tz";
-import { endOfDay, endOfMonth, parseISO, startOfDay, startOfMonth, startOfWeek } from "date-fns";
-import { and, asc, count, desc, eq, gte, isNull, lte, or, sum } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, isNull, lte, ne, or, sql, sum } from "drizzle-orm";
 import {
   branches,
   members,
@@ -11,37 +9,11 @@ import {
   subscriptions,
   user,
 } from "@/db/schema";
-import { DEFAULT_TZ } from "@/lib/dates";
+import { dayRange, resolveDateRange } from "@/lib/dates";
 import { withTenant, type TenantDb } from "@/lib/tenant";
 import type { PaymentFilters } from "./schema";
 
-// Rango [from, to] como instantes UTC calculados en la TZ del gimnasio.
-export function resolveDateRange(
-  filters: PaymentFilters,
-  tz = DEFAULT_TZ,
-): { from?: Date; to?: Date } {
-  const now = new TZDate(Date.now(), tz);
-  switch (filters.range) {
-    case "today":
-      return { from: startOfDay(now), to: endOfDay(now) };
-    case "week":
-      return { from: startOfWeek(now, { weekStartsOn: 1 }), to: endOfDay(now) };
-    case "month":
-      return { from: startOfMonth(now), to: endOfMonth(now) };
-    case "custom": {
-      const from = filters.from ? startOfDay(new TZDate(parseISO(filters.from), tz)) : undefined;
-      const to = filters.to ? endOfDay(new TZDate(parseISO(filters.to), tz)) : undefined;
-      return { from, to };
-    }
-    default:
-      return {};
-  }
-}
-
-export function dayRange(dateISO: string, tz = DEFAULT_TZ) {
-  const d = new TZDate(parseISO(dateISO), tz);
-  return { from: startOfDay(d), to: endOfDay(d) };
-}
+export { dayRange, resolveDateRange };
 
 function paymentConditions(orgId: string, filters: PaymentFilters) {
   const { from, to } = resolveDateRange(filters);
@@ -86,14 +58,17 @@ export async function listPayments(orgId: string, filters: PaymentFilters) {
           status: payments.status,
           paidAt: payments.paidAt,
           reference: payments.reference,
+          concept: payments.concept,
           memberId: payments.memberId,
+          payerName: payments.payerName,
           memberFirstName: members.firstName,
           memberLastName: members.lastName,
           memberDocument: members.documentNumber,
           receivedByName: user.name,
         })
         .from(payments)
-        .innerJoin(members, eq(members.id, payments.memberId))
+        // left, no inner: la venta rápida (5.3) no tiene socio.
+        .leftJoin(members, eq(members.id, payments.memberId))
         .leftJoin(user, eq(user.id, payments.receivedBy))
         .where(where)
         .orderBy(desc(payments.paidAt), desc(payments.receiptNumber))
@@ -153,7 +128,7 @@ export async function getPayment(orgId: string, paymentId: string) {
         receivedByName: user.name,
       })
       .from(payments)
-      .innerJoin(members, eq(members.id, payments.memberId))
+      .leftJoin(members, eq(members.id, payments.memberId))
       .leftJoin(subscriptions, eq(subscriptions.id, payments.subscriptionId))
       .leftJoin(plans, eq(plans.id, subscriptions.planId))
       .leftJoin(user, eq(user.id, payments.receivedBy))
@@ -197,6 +172,119 @@ export async function getSubscriptionBalanceTx(tx: TenantDb, subscriptionId: str
 
 export async function getSubscriptionBalance(orgId: string, subscriptionId: string) {
   return withTenant(orgId, (tx) => getSubscriptionBalanceTx(tx, subscriptionId));
+}
+
+// Cartera (Fase 5.5): un socio debe cuando su plan cuesta más de lo que ha pagado.
+// Un solo query agregado (no N+1 por suscripción como getSubscriptionBalanceTx) — las
+// suscripciones canceladas no cuentan (no se les va a cobrar). Todos los roles con
+// `debt.read` ven la misma lista; solo el total agregado se gatea por finance.read en la
+// página (ver Fase 5 slice 0).
+export async function listDebtors(orgId: string) {
+  return withTenant(orgId, async (tx) => {
+    const paidBySub = tx
+      .select({
+        subscriptionId: payments.subscriptionId,
+        paid: sum(payments.amountCents).mapWith(Number).as("paid"),
+      })
+      .from(payments)
+      .where(and(eq(payments.status, "completed"), isNull(payments.deletedAt)))
+      .groupBy(payments.subscriptionId)
+      .as("paid_by_sub");
+
+    const balanceExpr = sql<number>`${subscriptions.priceCentsSnapshot} - coalesce(${paidBySub.paid}, 0)`;
+
+    const rows = await tx
+      .select({
+        subscriptionId: subscriptions.id,
+        memberId: members.id,
+        memberFirstName: members.firstName,
+        memberLastName: members.lastName,
+        memberDocument: members.documentNumber,
+        planName: plans.name,
+        status: subscriptions.status,
+        startDate: subscriptions.startDate,
+        endDate: subscriptions.endDate,
+        priceCents: subscriptions.priceCentsSnapshot,
+        paidCents: sql<number>`coalesce(${paidBySub.paid}, 0)`.mapWith(Number),
+        balanceCents: balanceExpr.mapWith(Number),
+      })
+      .from(subscriptions)
+      .innerJoin(members, eq(members.id, subscriptions.memberId))
+      .innerJoin(plans, eq(plans.id, subscriptions.planId))
+      .leftJoin(paidBySub, eq(paidBySub.subscriptionId, subscriptions.id))
+      .where(
+        and(
+          eq(subscriptions.orgId, orgId),
+          isNull(subscriptions.deletedAt),
+          isNull(members.deletedAt),
+          ne(subscriptions.status, "cancelled"),
+          sql`${balanceExpr} > 0`,
+        ),
+      )
+      .orderBy(desc(balanceExpr));
+
+    return rows;
+  });
+}
+
+// Solo el conteo, para el badge de "Cartera" en el sidebar (se pide en cada navegación
+// dentro de la org — layout.tsx — así que se evita traer filas o incluso sumar montos).
+export async function getDebtorsCount(orgId: string): Promise<number> {
+  return withTenant(orgId, async (tx) => {
+    const paidBySub = tx
+      .select({
+        subscriptionId: payments.subscriptionId,
+        paid: sum(payments.amountCents).mapWith(Number).as("paid"),
+      })
+      .from(payments)
+      .where(and(eq(payments.status, "completed"), isNull(payments.deletedAt)))
+      .groupBy(payments.subscriptionId)
+      .as("paid_by_sub");
+
+    const [row] = await tx
+      .select({ n: count() })
+      .from(subscriptions)
+      .leftJoin(paidBySub, eq(paidBySub.subscriptionId, subscriptions.id))
+      .where(
+        and(
+          eq(subscriptions.orgId, orgId),
+          isNull(subscriptions.deletedAt),
+          ne(subscriptions.status, "cancelled"),
+          sql`${subscriptions.priceCentsSnapshot} - coalesce(${paidBySub.paid}, 0) > 0`,
+        ),
+      );
+    return row?.n ?? 0;
+  });
+}
+
+// Solo la suma, para el KPI "Por cobrar" del dashboard (evita traer todas las filas).
+export async function getTotalDebtCents(orgId: string): Promise<number> {
+  return withTenant(orgId, async (tx) => {
+    const paidBySub = tx
+      .select({
+        subscriptionId: payments.subscriptionId,
+        paid: sum(payments.amountCents).mapWith(Number).as("paid"),
+      })
+      .from(payments)
+      .where(and(eq(payments.status, "completed"), isNull(payments.deletedAt)))
+      .groupBy(payments.subscriptionId)
+      .as("paid_by_sub");
+
+    const balanceExpr = sql<number>`${subscriptions.priceCentsSnapshot} - coalesce(${paidBySub.paid}, 0)`;
+
+    const [row] = await tx
+      .select({ total: sql<number>`coalesce(sum(greatest(${balanceExpr}, 0)), 0)`.mapWith(Number) })
+      .from(subscriptions)
+      .leftJoin(paidBySub, eq(paidBySub.subscriptionId, subscriptions.id))
+      .where(
+        and(
+          eq(subscriptions.orgId, orgId),
+          isNull(subscriptions.deletedAt),
+          ne(subscriptions.status, "cancelled"),
+        ),
+      );
+    return row?.total ?? 0;
+  });
 }
 
 // Membresía vigente (o la más reciente no cancelada) del socio con su saldo.
@@ -264,7 +352,13 @@ export async function getOrgReceiptInfo(orgId: string) {
   });
 }
 
-export async function getCashClose(orgId: string, dateISO: string) {
+// `scope.receivedBy` limita el cierre a los pagos de un usuario: se exige cuando quien
+// consulta no tiene `payment.readAll` (Recepción), para que no vea los cobros ajenos.
+export async function getCashClose(
+  orgId: string,
+  dateISO: string,
+  scope: { receivedBy?: string } = {},
+) {
   return withTenant(orgId, async (tx) => {
     const { from, to } = dayRange(dateISO);
     const where = and(
@@ -272,6 +366,7 @@ export async function getCashClose(orgId: string, dateISO: string) {
       isNull(payments.deletedAt),
       gte(payments.paidAt, from),
       lte(payments.paidAt, to),
+      scope.receivedBy ? eq(payments.receivedBy, scope.receivedBy) : undefined,
     );
     const rows = await tx
       .select({
@@ -282,6 +377,7 @@ export async function getCashClose(orgId: string, dateISO: string) {
         status: payments.status,
         paidAt: payments.paidAt,
         reference: payments.reference,
+        payerName: payments.payerName,
         memberFirstName: members.firstName,
         memberLastName: members.lastName,
         receivedById: payments.receivedBy,
@@ -290,7 +386,8 @@ export async function getCashClose(orgId: string, dateISO: string) {
         branchName: branches.name,
       })
       .from(payments)
-      .innerJoin(members, eq(members.id, payments.memberId))
+      // left, no inner: la venta rápida (5.3) no tiene socio (usa payerName en su lugar).
+      .leftJoin(members, eq(members.id, payments.memberId))
       .leftJoin(user, eq(user.id, payments.receivedBy))
       .leftJoin(branches, eq(branches.id, payments.branchId))
       .where(where)
