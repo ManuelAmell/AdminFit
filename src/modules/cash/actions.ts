@@ -88,6 +88,7 @@ export async function closeCash(
     });
 
     revalidatePath(`/app/${orgSlug}/payments/cash-close`);
+    revalidatePath(`/app/${orgSlug}/cash`);
     return { ok: true, data: { id, blind: !can(ctx, { cashClosure: ["readAll"] }) } };
   } catch (err) {
     // Carrera entre el chequeo de arriba y el insert: el índice único
@@ -118,6 +119,7 @@ export async function reopenCash(
     });
     if (!result) return { ok: false, error: "El cierre no existe." };
     revalidatePath(`/app/${orgSlug}/payments/cash-close`);
+    revalidatePath(`/app/${orgSlug}/cash`);
     return { ok: true, data: undefined };
   } catch (err) {
     return fail(err);

@@ -7,6 +7,7 @@ import {
   Receipt,
   Settings,
   Users,
+  Vault,
   Wallet,
   type LucideIcon,
 } from "lucide-react";
@@ -37,6 +38,12 @@ const MAIN_ITEMS = (base: string): NavItem[] => [
     href: `${base}/payments/debts`,
     icon: HandCoins,
     requires: { debt: ["read"] },
+  },
+  {
+    label: "Caja",
+    href: `${base}/cash`,
+    icon: Vault,
+    requires: { cashClosure: ["readAll"] },
   },
   { label: "Gastos", href: `${base}/expenses`, icon: Wallet, requires: { expense: ["read"] } },
   { label: "Planes", href: `${base}/plans`, icon: ListChecks, requires: { plan: ["read"] } },
