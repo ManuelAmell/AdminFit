@@ -1,5 +1,5 @@
 import { TZDate } from "@date-fns/tz";
-import { endOfDay, endOfMonth, parseISO, startOfDay, startOfMonth, startOfWeek } from "date-fns";
+import { endOfDay, endOfMonth, startOfDay, startOfMonth, startOfWeek } from "date-fns";
 import { and, asc, count, desc, eq, gte, isNull, lte, or, sum } from "drizzle-orm";
 import {
   branches,
@@ -11,7 +11,7 @@ import {
   subscriptions,
   user,
 } from "@/db/schema";
-import { DEFAULT_TZ } from "@/lib/dates";
+import { DEFAULT_TZ, isoDateInTz } from "@/lib/dates";
 import { withTenant, type TenantDb } from "@/lib/tenant";
 import type { PaymentFilters } from "./schema";
 
@@ -29,8 +29,8 @@ export function resolveDateRange(
     case "month":
       return { from: startOfMonth(now), to: endOfMonth(now) };
     case "custom": {
-      const from = filters.from ? startOfDay(new TZDate(parseISO(filters.from), tz)) : undefined;
-      const to = filters.to ? endOfDay(new TZDate(parseISO(filters.to), tz)) : undefined;
+      const from = filters.from ? startOfDay(isoDateInTz(filters.from, tz)) : undefined;
+      const to = filters.to ? endOfDay(isoDateInTz(filters.to, tz)) : undefined;
       return { from, to };
     }
     default:
@@ -39,7 +39,7 @@ export function resolveDateRange(
 }
 
 export function dayRange(dateISO: string, tz = DEFAULT_TZ) {
-  const d = new TZDate(parseISO(dateISO), tz);
+  const d = isoDateInTz(dateISO, tz);
   return { from: startOfDay(d), to: endOfDay(d) };
 }
 
