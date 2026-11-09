@@ -4,7 +4,6 @@ import {
   endOfMonth,
   endOfQuarter,
   format,
-  parseISO,
   startOfDay,
   startOfMonth,
   startOfQuarter,
@@ -54,6 +53,13 @@ export type ResolvedReportDateRange = {
   toISO: string;
 };
 
+// Construye la fecha YYYY-MM-DD directamente en `tz`. No usar parseISO: interpreta la fecha en la
+// zona del proceso (UTC en servidores/Docker) y el rango se corre un día al pasarlo a Bogotá.
+function isoDateInTz(iso: string, tz: string): TZDate {
+  const [year, month, day] = iso.split("-").map(Number);
+  return new TZDate(year, month - 1, day, tz);
+}
+
 export function resolveReportDateRange(
   filters: Partial<ReportFilters>,
   tz = DEFAULT_TZ,
@@ -82,10 +88,8 @@ export function resolveReportDateRange(
       toDate = endOfQuarter(now);
       break;
     case "custom": {
-      fromDate = filters.from
-        ? startOfDay(new TZDate(parseISO(filters.from), tz))
-        : startOfMonth(now);
-      toDate = filters.to ? endOfDay(new TZDate(parseISO(filters.to), tz)) : endOfMonth(now);
+      fromDate = filters.from ? startOfDay(isoDateInTz(filters.from, tz)) : startOfMonth(now);
+      toDate = filters.to ? endOfDay(isoDateInTz(filters.to, tz)) : endOfMonth(now);
       break;
     }
     case "month":

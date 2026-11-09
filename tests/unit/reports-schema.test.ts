@@ -68,6 +68,26 @@ describe("resolveReportDateRange (TZ Bogotá)", () => {
     expect(toISO).toBe("2026-05-20");
   });
 
+  it("custom no se corre de día aunque el proceso corra en UTC (servidor/Docker)", () => {
+    const original = process.env.TZ;
+    process.env.TZ = "UTC";
+    try {
+      const { from, to, fromISO, toISO } = resolveReportDateRange({
+        range: "custom",
+        from: "2026-11-01",
+        to: "2026-11-05",
+      });
+      expect(fromISO).toBe("2026-11-01");
+      expect(toISO).toBe("2026-11-05");
+      // Medianoche de Bogotá (UTC-5) = 05:00Z
+      expect(from.getTime()).toBe(Date.parse("2026-11-01T05:00:00.000Z"));
+      expect(to.getTime()).toBe(Date.parse("2026-11-06T04:59:59.999Z"));
+    } finally {
+      if (original === undefined) delete process.env.TZ;
+      else process.env.TZ = original;
+    }
+  });
+
   it("calcula hoy (today) cubriendo desde inicio hasta fin del día", () => {
     const { fromISO, toISO, from, to } = resolveReportDateRange({ range: "today" });
     expect(fromISO).toBe(toISO);
