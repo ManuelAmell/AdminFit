@@ -9,6 +9,13 @@ export function todayISO(tz = DEFAULT_TZ): string {
   return format(new TZDate(Date.now(), tz), "yyyy-MM-dd");
 }
 
+// Medianoche de una fecha YYYY-MM-DD en `tz`. No usar `new TZDate(parseISO(iso), tz)`: parseISO
+// interpreta la fecha en la zona del proceso (UTC en servidores/Docker) y el día se corre hacia atrás.
+export function isoDateInTz(iso: string, tz = DEFAULT_TZ): TZDate {
+  const [year, month, day] = iso.split("-").map(Number);
+  return new TZDate(year, month - 1, day, tz);
+}
+
 export function toISODate(d: Date): string {
   return format(d, "yyyy-MM-dd");
 }
