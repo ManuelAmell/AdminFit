@@ -11,7 +11,7 @@ import {
   subMonths,
 } from "date-fns";
 import { z } from "zod";
-import { DEFAULT_TZ } from "@/lib/dates";
+import { DEFAULT_TZ, isoDateInTz } from "@/lib/dates";
 
 export const REPORT_PRESETS = [
   "today",
@@ -52,13 +52,6 @@ export type ResolvedReportDateRange = {
   fromISO: string;
   toISO: string;
 };
-
-// Construye la fecha YYYY-MM-DD directamente en `tz`. No usar parseISO: interpreta la fecha en la
-// zona del proceso (UTC en servidores/Docker) y el rango se corre un día al pasarlo a Bogotá.
-function isoDateInTz(iso: string, tz: string): TZDate {
-  const [year, month, day] = iso.split("-").map(Number);
-  return new TZDate(year, month - 1, day, tz);
-}
 
 export function resolveReportDateRange(
   filters: Partial<ReportFilters>,
