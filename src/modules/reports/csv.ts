@@ -40,6 +40,10 @@ export type ReportExportData = {
   }>;
 };
 
+// Nombres, documentos y referencias los escriben usuarios: un valor que empiece por = + - @
+// se ejecutaría como fórmula al abrir el CSV en Excel. Papa lo neutraliza con un apóstrofo.
+const UNPARSE_OPTIONS = { escapeFormulae: true } as const;
+
 export function generateReportCsv(data: ReportExportData): string {
   const sections: string[] = [];
 
@@ -51,7 +55,7 @@ export function generateReportCsv(data: ReportExportData): string {
     ["Fecha de Generación", new Date().toISOString().replace("T", " ").slice(0, 19)],
     [],
   ];
-  sections.push(Papa.unparse(metaRows));
+  sections.push(Papa.unparse(metaRows, UNPARSE_OPTIONS));
 
   // Resumen General (KPIs)
   const summaryRows = [
@@ -63,7 +67,7 @@ export function generateReportCsv(data: ReportExportData): string {
     ["Vencimientos en Periodo", String(data.summary.expirationsCount)],
     [],
   ];
-  sections.push(Papa.unparse(summaryRows));
+  sections.push(Papa.unparse(summaryRows, UNPARSE_OPTIONS));
 
   // Ingresos por Plan
   const planRows = [
@@ -77,7 +81,7 @@ export function generateReportCsv(data: ReportExportData): string {
     ]),
     [],
   ];
-  sections.push(Papa.unparse(planRows));
+  sections.push(Papa.unparse(planRows, UNPARSE_OPTIONS));
 
   // Ingresos por Método de Pago
   const methodRows = [
@@ -91,7 +95,7 @@ export function generateReportCsv(data: ReportExportData): string {
     ]),
     [],
   ];
-  sections.push(Papa.unparse(methodRows));
+  sections.push(Papa.unparse(methodRows, UNPARSE_OPTIONS));
 
   // Detalle de Pagos
   const detailRows = [
@@ -113,11 +117,11 @@ export function generateReportCsv(data: ReportExportData): string {
       d.memberName,
       d.planName,
       PAYMENT_METHOD_LABELS[d.method] ?? d.method,
-      d.reference || "-",
+      d.reference || "",
       formatCOP(d.amountCents),
     ]),
   ];
-  sections.push(Papa.unparse(detailRows));
+  sections.push(Papa.unparse(detailRows, UNPARSE_OPTIONS));
 
   // BOM UTF-8 para garantizar compatibilidad con Excel
   return "\uFEFF" + sections.join("\n\n");

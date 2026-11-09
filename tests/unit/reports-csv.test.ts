@@ -83,4 +83,28 @@ describe("generateReportCsv", () => {
     expect(csv).toContain("Plan Mensual");
     expect(csv).toContain("Plan Trimestral");
   });
+
+  it("neutraliza fórmulas en campos escritos por usuarios (CSV injection)", () => {
+    const csv = generateReportCsv({
+      ...sampleData,
+      orgName: "@Gym",
+      byPlan: [{ ...sampleData.byPlan[0], planName: "+Plan" }],
+      paymentsDetail: [
+        {
+          ...sampleData.paymentsDetail[0],
+          memberName: '=HYPERLINK("http://evil.test","x")',
+          memberDocument: "-1+1",
+          reference: "@SUM(A1)",
+        },
+      ],
+    });
+    const cells = csv
+      .split(/\r?\n/)
+      .flatMap((line) => line.split(","))
+      .map((c) => c.replace(/^"|"$/g, ""));
+    for (const cell of cells) {
+      expect(cell).not.toMatch(/^[=+\-@\t\r]/);
+    }
+    expect(csv).toContain("HYPERLINK");
+  });
 });
