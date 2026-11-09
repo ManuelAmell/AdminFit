@@ -23,16 +23,20 @@ export default defineConfig({
           include: ["tests/unit/**/*.test.{ts,tsx}"],
         },
       },
-      {
-        extends: true,
-        test: {
-          name: "integration",
-          environment: "node",
-          globalSetup: ["./tests/integration/setup.ts"],
-          include: ["tests/integration/**/*.test.{ts,tsx}"],
-          fileParallelism: false,
-        },
-      },
+      ...(process.env.DATABASE_URL
+        ? [
+            {
+              extends: true,
+              test: {
+                name: "integration",
+                environment: "node",
+                globalSetup: ["./tests/integration/setup.ts"],
+                include: ["tests/integration/**/*.test.{ts,tsx}"],
+                fileParallelism: false,
+              },
+            },
+          ]
+        : []),
     ],
   },
 });
