@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import * as authorizeModule from "@/lib/auth/authorize";
+import type { OrgContext } from "@/lib/auth/session";
 import { exportReportCsvAction } from "@/modules/reports/actions";
 import * as queriesModule from "@/modules/reports/queries";
 
@@ -39,7 +40,7 @@ describe("exportReportCsvAction", () => {
         updatedAt: new Date(),
       },
       isSuperadmin: false,
-    } as unknown as authorizeModule.OrgContext);
+    } as unknown as OrgContext);
 
     vi.spyOn(queriesModule, "getReportExportData").mockResolvedValueOnce({
       orgName: "Gym Test",

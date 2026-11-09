@@ -26,7 +26,6 @@ const cashier = {
 };
 
 let planA1: string;
-let planA2: string;
 let memberA1: string;
 let memberA2: string;
 let memberB: string;
@@ -68,11 +67,9 @@ describe("reportes del tenant: consultas y agregaciones", () => {
         .returning({ id: plans.id });
       planA1 = p1.id;
 
-      const [p2] = await tx
+      await tx
         .insert(plans)
-        .values({ orgId: orgA.id, name: "Plan Trimestre Plata", priceCents: 300_000_00 })
-        .returning({ id: plans.id });
-      planA2 = p2.id;
+        .values({ orgId: orgA.id, name: "Plan Trimestre Plata", priceCents: 300_000_00 });
 
       const [sub1] = await tx
         .insert(subscriptions)
